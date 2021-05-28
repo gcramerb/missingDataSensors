@@ -146,23 +146,35 @@ class dataHandler():
 		Xsensor = np.concatenate(temp, axis=-1)
 		self.dataX = temp
 		
-	def splitTrainTest(self,fold_i = None):
+	def splitTrainTest(self,fold_i = None,ratio = 0.7,val = False):
 		del self.dataXtest
 		del self.dataXtrain
 		self.dataXtrain = []
 		self.dataXtest = []
 		
-		if fold_i is None:
-			ratio = 0.7
+		if fold_i is None and val:
 			samples = len(self.dataX[0])
 			np.random.seed(0)
-			max_ = int(samples*ratio)
+			trainSize = int(samples*(ratio - 0.1))
+			valSize = int(samples*0.1)
+		
+			idx = np.random.permutation(samples)
+			idx_train = idx[:trainSize]
+			idx_val= idx[trainSize:valSize]
+			idx_test =  idx[valSize:]
+		elif fold_i is None:
+			samples = len(self.dataX[0])
+			np.random.seed(0)
+			max_ = int(samples*(ratio - 0.1))
 			idx = np.random.permutation(samples)
 			idx_train = idx[:max_]
 			idx_test =  idx[max_:]
 		else:
 			idx_train = self.folds[fold_i][0]
 			idx_test = self.folds[fold_i][1]
+		
+		
+		
 		if self.dataX is not None:
 			dataX = deepcopy(self.dataX)
 			self.dataXtrain = []
