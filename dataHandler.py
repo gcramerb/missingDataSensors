@@ -12,7 +12,10 @@ from numpy.random import rand
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from utils import classesNames
+import sys
+import os
+sys.path.insert(0, os.path.realpath('../../../'))
+from missingDataSensors.utils import classesNames
 from itertools import chain
 
 
