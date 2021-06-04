@@ -11,13 +11,14 @@ import utils
 import argparse
 import data_loader
 
-from .rits import Model as ritsModel
+# import rits
+import models.rits as rits
 from sklearn import metrics
 
-from ipdb import set_trace
+# from ipdb import set_trace
 
-SEQ_LEN = 48
-RNN_HID_SIZE = 64
+SEQ_LEN = 500
+RNN_HID_SIZE = 50
 
 
 class Model(nn.Module):
@@ -31,8 +32,8 @@ class Model(nn.Module):
         self.build()
 
     def build(self):
-        self.rits_f = ritsModel(self.rnn_hid_size, self.impute_weight, self.label_weight)
-        self.rits_b = ritsModel(self.rnn_hid_size, self.impute_weight, self.label_weight)
+        self.rits_f = rits.Model(self.rnn_hid_size, self.impute_weight, self.label_weight)
+        self.rits_b = rits.Model(self.rnn_hid_size, self.impute_weight, self.label_weight)
 
     def forward(self, data):
         ret_f = self.rits_f(data, 'forward')
@@ -88,4 +89,3 @@ class Model(nn.Module):
             optimizer.step()
 
         return ret
-

@@ -25,9 +25,9 @@ class dataGenerator:
 		auxForward['values'] = xRec.tolist()
 		auxForward['masks'] = np.ones([shapes[0], shapes[1]])
 		auxForward['masks'][idx] = np.concatenate([np.zeros(missing_axis), np.ones(shapes[-1] - missing_axis)])
-		auxForward['eval'] = x.tolist()
+		auxForward['evals'] = x.tolist()
 		auxForward['eval_masks'] = np.ones([shapes[0], shapes[1]]).tolist()
-		auxForward['forward'] = None
+		auxForward['forwards'] =  xRec.tolist()
 		auxForward['deltas'] = np.zeros([shapes[0], shapes[1]])
 		for j in range(1, shapes[0]):
 			value = j + np.multiply(auxForward['deltas'][j - 1], ((auxForward['masks'][j - 1] * -2) + 2) / 2)
@@ -39,9 +39,9 @@ class dataGenerator:
 		auxBackward['values'] = xRec[::-1].tolist()
 		auxBackward['masks'] = np.ones([shapes[0], shapes[1]])
 		auxBackward['masks'][shapes[1] - idx -1] = np.concatenate([np.zeros(missing_axis), np.ones(shapes[-1] - missing_axis)])
-		auxBackward['eval'] = x[::-1].tolist()
+		auxBackward['evals'] = x[::-1].tolist()
 		auxBackward['eval_masks'] = np.ones([shapes[0], shapes[1]]).tolist()
-		auxBackward['forward'] = None
+		auxBackward['forwards'] =  xRec.tolist()
 		auxBackward['deltas'] = np.zeros([shapes[0], shapes[1]])
 		for j in range(1, shapes[1]):
 			value = j + np.multiply(auxBackward['deltas'][j - 1], ((auxBackward['masks'][j - 1] * -2) + 2) / 2)

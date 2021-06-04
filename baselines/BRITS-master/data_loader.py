@@ -47,10 +47,10 @@ class MyTrainSet(Dataset):
 	def __getitem__(self, idx):
 		rec = json.loads(self.content[idx])
 		
-		# if idx in self.val_indices:
-		#     rec['is_train'] = 0
-		# else:
-		#     rec['is_train'] = 1
+		if idx in self.val_indices:
+		    rec['is_train'] = 0
+		else:
+		    rec['is_train'] = 1
 		return rec
 
 
@@ -72,10 +72,10 @@ class MyTestSet(Dataset):
 	def __getitem__(self, idx):
 		rec = json.loads(self.content[idx])
 		
-		# if idx in self.val_indices:
-		#     rec['is_train'] = 0
-		# else:
-		#     rec['is_train'] = 1
+		if idx in self.val_indices:
+		    rec['is_train'] = 0
+		else:
+		    rec['is_train'] = 1
 		return rec
 
 
@@ -84,28 +84,27 @@ def collate_fn(recs):
 	backward = list(map(lambda x: x['backward'], recs))
 	
 	def to_tensor_dict(recs):
-		# values = torch.FloatTensor(list(map(lambda r: r['values'], recs)))
-		# masks = torch.FloatTensor(list(map(lambda r: r['masks'], recs)))
-		# deltas = torch.FloatTensor(list(map(lambda r: r['deltas'], recs)))
+		values = torch.FloatTensor(list(map(lambda r: r['values'], recs)))
+		masks = torch.FloatTensor(list(map(lambda r: r['masks'], recs)))
+		deltas = torch.FloatTensor(list(map(lambda r: r['deltas'], recs)))
 		
-		# evals = torch.FloatTensor(list(map(lambda r: r['evals'], recs)))
-		# eval_masks = torch.FloatTensor(
-		#     list(map(lambda r: r['eval_masks'], recs)))
-		# forwards = torch.FloatTensor(list(map(lambda r: r['forwards'], recs)))
-		
-		values = torch.FloatTensor(
-			list(map(lambda r: list(map(lambda x: x['values'], r)), recs)))
-		masks = torch.FloatTensor(
-			list(map(lambda r: list(map(lambda x: x['masks'], r)), recs)))
-		deltas = torch.FloatTensor(
-			list(map(lambda r: list(map(lambda x: x['deltas'], r)), recs)))
-		forwards = torch.FloatTensor(
-			list(map(lambda r: list(map(lambda x: x['forwards'], r)), recs)))
-		
-		evals = torch.FloatTensor(
-			list(map(lambda r: list(map(lambda x: x['evals'], r)), recs)))
+		evals = torch.FloatTensor(list(map(lambda r: r['evals'], recs)))
 		eval_masks = torch.FloatTensor(
-			list(map(lambda r: list(map(lambda x: x['eval_masks'], r)), recs)))
+		    list(map(lambda r: r['eval_masks'], recs)))
+		forwards = torch.FloatTensor(list(map(lambda r: r['forwards'], recs)))
+		# values = torch.FloatTensor(
+		# 	list(map(lambda r: list(map(lambda x: x['values'], r)), recs_aux)))
+		# masks = torch.FloatTensor(
+		# 	list(map(lambda r: list(map(lambda x: x['masks'], r)), recs_aux)))
+		# deltas = torch.FloatTensor(
+		# 	list(map(lambda r: list(map(lambda x: x['deltas'], r)), recs_aux)))
+		# forwards = torch.FloatTensor(
+		# 	list(map(lambda r: list(map(lambda x: x['forwards'], r)), recs_aux)))
+		#
+		# evals = torch.FloatTensor(
+		# 	list(map(lambda r: list(map(lambda x: x['evals'], r)), recs_aux)))
+		# eval_masks = torch.FloatTensor(
+		# 	list(map(lambda r: list(map(lambda x: x['eval_masks'], r)), recs_aux)))
 		
 		# print('values:{}'.format(values.size()))
 		# print('!!')

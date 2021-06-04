@@ -25,24 +25,24 @@ import pickle
 
 from dataGeneratorForBRITS import dataGenerator
 
-outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Datasets\\USCHAD_forBRITS\\')
-inPath = None
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--epochs', type=int, default=1000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--model', type=str, default='brits')
-parser.add_argument('--hid_size', type=int, default=108)
+parser.add_argument('--hid_size', type=int, default=50)
 parser.add_argument('--impute_weight', type=float, default=0.3)
 parser.add_argument('--label_weight', type=float, default=1.0)
 parser.add_argument('--missingRate',type=str,default= '0.5')
 
-parser.add_argument('--inPath',type=str,default= inPath)
-parser.add_argument('--outPath',type=str,default=outPath)
+parser.add_argument('--inPath',type=str,default= None)
+parser.add_argument('--outPath',type=str,default=None)
 parser.add_argument('--dataset',type=str,default="USCHAD.npz")
 
 args = parser.parse_args()
+
+if args.outPath is None:
+	args.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Datasets\\USCHAD_forBRITS\\')
+
 
 
 def train(model, early_stopping,dataPath):
@@ -218,8 +218,7 @@ if __name__ == '__main__':
 	#DG.setPath(args.inPath,args.outPath)
 	#DG.myPreprocess(fold = i )
 	fileName  = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{i}'
-	dataPath = os.path.join(args.outPath, fileName)
-	run(dataPath +'_train')
+	run(os.path.join(args.outPath, fileName+'_train'))
 	# evaluate the best model
-	#evaluate_model(dataPath +'_test')
+	evaluate_model(os.path.join(args.outPath, fileName+'_test'))
 	
