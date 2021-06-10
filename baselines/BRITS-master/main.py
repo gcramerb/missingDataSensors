@@ -162,7 +162,7 @@ def evaluate(model, val_iter):
 	save_impute = np.concatenate(save_impute, axis=0)
 	save_label = np.concatenate(save_label, axis=0)
 	pathResult = os.path.relpath('result/')
-	return sqrt(metrics.mean_squared_error(evals, imputations)),(save_impute,save_label)
+	return sqrt(metrics.mean_squared_error(evals, imputations)),save_impute,save_label
 
 
 def test(model, savepath,dataTest):
@@ -170,8 +170,8 @@ def test(model, savepath,dataTest):
 	
 	test_data_iter = data_loader.get_test_loader(dataTest,
 		batch_size=args.batch_size)
-	valid_loss,imputation = evaluate(model, test_data_iter)
-	return imputation
+	valid_loss,imputed,labels = evaluate(model, test_data_iter)
+	return imputed,labels
 
 
 def run(dataTrain):
@@ -195,7 +195,7 @@ def run(dataTrain):
 	
 
 
-def evaluate_model(dataPath):
+def evaluate_model(dataTest):
 	model = getattr(models,
 	                args.model).Model(args.hid_size, args.impute_weight,
 	                                  args.label_weight)
@@ -209,7 +209,8 @@ def evaluate_model(dataPath):
 	#savepath = os.path.relpath('result/resultFinalES.pt')
 	name = dataPath.split('/')[-1]
 	savepath = os.path.join(args.outPath,'result',f'model{name}.pt')
-	return test(model, savepath,dataPath)
+	imputed,labels = test(model, savepath,dataTest)
+	return imputed,labels
 
 
 if __name__ == '__main__':
@@ -219,12 +220,11 @@ if __name__ == '__main__':
 	DG.setPath(args.inPath,args.outPath)
 	dataTrain,dataTest = DG.myPreprocess(fold = args.fold,save = False)
 	fileName  = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{args.fold}'
-
 	
 	run(dataTrain)
 	# evaluate the best model
 	#os.path.join(args.outPath, fileName+'_test')
-	result = evaluate_model(dataTest)
+	imputed,labels = evaluate_model(dataTest)
 	name = os.path.join(args.outPath, fileName)
-	np.savez(name,impute =result[0],labels = result[1])
+	np.savez(name,imputed = imputed,labels = labels)
 	

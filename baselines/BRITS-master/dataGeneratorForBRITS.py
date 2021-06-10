@@ -50,8 +50,7 @@ class dataGenerator:
 		auxBackward['masks'] = auxBackward['masks'].astype('int32').tolist()
 		return auxForward ,auxBackward
 			
-	def myPreprocess(self,fold = 0,save = True):
-		
+	def myPreprocess(self,fold = 0,save = False):
 		processedFile = self.dataset.split('.')[0] +'_'+self.missing+ f'_fold_{fold}'
 		outputTrain = os.path.join(self.outPath,processedFile + '_train')
 		outputTest = os.path.join(self.outPath, processedFile + '_test')
@@ -120,6 +119,6 @@ class dataGenerator:
 				sampleDict['backward'] = backward
 				jsonOutFileTest.append(json.dumps(sampleDict))
 			return jsonOutFileTrain,jsonOutFileTest
-		return None,None
+		return (None,None)
 
 		

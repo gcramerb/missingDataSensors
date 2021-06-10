@@ -6,6 +6,28 @@ import os
 import sys
 import json
 import pickle
+import argparse
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--inPath', type=str, default=None)
+parser.add_argument('--outPath', type=str, default=None)
+parser.add_argument('--dataset', type=str, default="USCHAD")
+
+args = parser.parse_args()
+
+if (args.inPath is not None):
+	sys.path.insert(0, "/home/guilherme.silva/missing_data")
+	from dataHandler import dataHandler
+	sys.path.insert(0, "/home/guilherme.silva/classifiers")
+	from Catal import Catal
+else:
+	args.inPath = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
+	args.outPath = "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\"
+	sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\missingDataSensors\\")
+	from dataHandler import dataHandler
+	sys.path.insert(0, "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\")
+	from Catal import Catal
 
 def trainClassifiers(datasetName,inPath,outPath):
 	# dataPreparation:
@@ -39,20 +61,7 @@ def classificationResult(data,Fold,path):
 if __name__ == '__main__':
 	# Paper: On the use of ensemble of classifiers for accelerometer-based activity recognition
 	np.random.seed(12227)
-	
-	if (len(sys.argv) > 1):
-		inPath = sys.argv[1]
-		outPath = sys.argv[2]
-	else:
-		inPath = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
-		outPath = "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\"
-		sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\missingDataSensors\\")
-		from dataHandler import dataHandler
-		sys.path.insert(0, "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\")
-		from Catal import Catal
-	
-	dataset = 'USCHAD'
-	trainClassifiers(dataset,inPath,outPath)
+	trainClassifiers(args.dataset,args.inPath,args.outPath)
 	
 
 	
