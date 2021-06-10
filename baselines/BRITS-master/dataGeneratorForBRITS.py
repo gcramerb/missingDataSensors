@@ -50,15 +50,13 @@ class dataGenerator:
 		auxBackward['masks'] = auxBackward['masks'].astype('int32').tolist()
 		return auxForward ,auxBackward
 			
-	def myPreprocess(self,fold = 0,save = False):
+	def myPreprocess(self,fold = 0,save = True):
 		
 		processedFile = self.dataset.split('.')[0] +'_'+self.missing+ f'_fold_{fold}'
 		outputTrain = os.path.join(self.outPath,processedFile + '_train')
 		outputTest = os.path.join(self.outPath, processedFile + '_test')
 		DH = dataHandler()
 		DH.load_data(dataset_name=self.dataset, sensor_factor='1.1.0',path =self.inPath )
-		fsTrain = open(outputTrain, 'w')
-		fsTest= open(outputTest, 'w')
 		## getting the data:
 		missing_axis = np.sum(3 *  list(map(int, self.missing_sensor.split('.')[:])))
 		DH.apply_missing(missing_factor=self.missing, missing_sensor=self.missing_sensor)
@@ -74,27 +72,54 @@ class dataGenerator:
 		xTrain = np.concatenate([DH.dataXtrain[0],DH.dataXtrain[1]],axis = -1)
 		y_train = DH.dataY
 		idx = DH.get_missing_indices()
-		shapes = xTrain.shape
-
-		for i in range(shapes[0]):
-			sampleDict = dict()
-			sampleDict['label'] = int(y_train[i])
-			forward , backward = self.process(xTrain[i],xTrainRec[i],idx['train'][i],missing_axis)
-			sampleDict['forward'] = forward
-			sampleDict['backward'] = backward
-			jsonOutFileTrain = json.dumps(sampleDict)
-			fsTrain.write(jsonOutFileTrain + '\n')
+		shapesTrain = xTrain.shape
 		
 		xTestRec = np.concatenate([DH.dataXreconstructedTest[0], DH.dataXreconstructedTest[1]], axis=-1)
 		xTest = np.concatenate([DH.dataXtest[0], DH.dataXtest[1]], axis=-1)
 		y_test = DH.dataYtest
-		shapes = xTest.shape
+		shapesTest = xTest.shape
 		
-		for i in range(shapes[0]):
-			sampleDict = dict()
-			sampleDict['label'] = int(y_test[i])
-			forward, backward = self.process(xTest[i], xTestRec[i], idx['test'][i], missing_axis)
-			sampleDict['forward'] = forward
-			sampleDict['backward'] = backward
-			jsonOutFileTest = json.dumps(sampleDict)
-			fsTest.write(jsonOutFileTest + '\n')
+		if save:
+			fsTrain = open(outputTrain, 'w')
+			fsTest= open(outputTest, 'w')
+
+			for i in range(shapesTrain[0]):
+				sampleDict = dict()
+				sampleDict['label'] = int(y_train[i])
+				forward , backward = self.process(xTrain[i],xTrainRec[i],idx['train'][i],missing_axis)
+				sampleDict['forward'] = forward
+				sampleDict['backward'] = backward
+				jsonOutFileTrain = json.dumps(sampleDict)
+				fsTrain.write(jsonOutFileTrain + '\n')
+			for i in range(shapesTest[0]):
+				sampleDict = dict()
+				sampleDict['label'] = int(y_test[i])
+				forward, backward = self.process(xTest[i], xTestRec[i], idx['test'][i], missing_axis)
+				sampleDict['forward'] = forward
+				sampleDict['backward'] = backward
+				jsonOutFileTest = json.dumps(sampleDict)
+				fsTest.write(jsonOutFileTest + '\n')
+			fsTest.close()
+			fsTrain.close()
+				
+		else:
+			jsonOutFileTest = []
+			jsonOutFileTrain = []
+			for i in range(shapesTrain[0]):
+				sampleDict = dict()
+				sampleDict['label'] = int(y_train[i])
+				forward , backward = self.process(xTrain[i],xTrainRec[i],idx['train'][i],missing_axis)
+				sampleDict['forward'] = forward
+				sampleDict['backward'] = backward
+				jsonOutFileTrain.append(json.dumps(sampleDict))
+			for i in range(shapesTest[0]):
+				sampleDict = dict()
+				sampleDict['label'] = int(y_test[i])
+				forward, backward = self.process(xTest[i], xTestRec[i], idx['test'][i], missing_axis)
+				sampleDict['forward'] = forward
+				sampleDict['backward'] = backward
+				jsonOutFileTest.append(json.dumps(sampleDict))
+			return jsonOutFileTrain,jsonOutFileTest
+		return None,None
+
+		

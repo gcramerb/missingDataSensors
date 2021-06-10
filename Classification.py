@@ -20,7 +20,7 @@ if __name__ == '__main__':
 	    path =  'C:\\Users\gcram\Documents\Smart Sense\Datasets\LOSO\\'
 	
 	dataset = 'USCHAD.npz'
-	missing_list = ['0.2','0.5','0.7','0.9']
+	missing_list = ['0.5']
 	#missing_list = ['0.2']
 	finalResult = dict()
 	finalResult['acc'] = dict()
@@ -31,7 +31,8 @@ if __name__ == '__main__':
 		finalResult['f1'][miss] = list()
 		finalResult['rec'][miss] = list()
 		
-	data_input_file = path + dataset
+	#data_input_file = path + dataset
+	data_input_file = os.path.abspath('C:\\Users\\gcram\\Documents\\Datasets\\USCHAD_forBRITS\\')
 	classifier = "Catal"
 	
 	simple_impute = False
@@ -40,7 +41,7 @@ if __name__ == '__main__':
 	
 	
 	#dataPreparation:
-	tmp = np.load(data_input_file,allow_pickle=True)
+	tmp = np.load(os.path.join(data_input_file,'brits_data.npy'),allow_pickle=True)
 	X = tmp['X']
 	X = X[:, 0, :, :]
 	y = tmp['y']

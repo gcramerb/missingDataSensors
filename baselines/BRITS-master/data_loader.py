@@ -31,10 +31,10 @@ class MySet(Dataset):
 
 
 class MyTrainSet(Dataset):
-	def __init__(self,dataPath):
+	def __init__(self,dataTrain):
 		super(MyTrainSet, self).__init__()
-		self.content = open(dataPath).readlines()
-		
+		#self.content = open(dataPath).readlines()
+		self.content = dataTrain
 		indices = np.arange(len(self.content))
 		
 		val_indices = np.random.choice(indices, len(self.content) // 5)
@@ -55,10 +55,11 @@ class MyTrainSet(Dataset):
 
 
 class MyTestSet(Dataset):
-	def __init__(self,dataPath):
+	def __init__(self,dataTest):
 		super(MyTestSet, self).__init__()
 
-		self.content = open(dataPath).readlines()
+		#self.content = open(dataPath).readlines()
+		self.content = dataTest
 		
 		indices = np.arange(len(self.content))
 		
@@ -158,7 +159,7 @@ def get_loader(batch_size=64, shuffle=True):
 
 
 def get_train_loader(dataPath,batch_size=100, shuffle=True):
-	data_set = MyTrainSet(dataPath)
+	data_set = MyTrainSet(dataTrain)
 	data_iter = DataLoader(dataset=data_set, \
 	                       batch_size=batch_size, \
 	                       num_workers=1, \
@@ -170,8 +171,8 @@ def get_train_loader(dataPath,batch_size=100, shuffle=True):
 	return data_iter
 
 
-def get_test_loader(dataPath,batch_size=100, shuffle=False):
-	data_set = MyTestSet(dataPath)
+def get_test_loader(dataTest,batch_size=100, shuffle=False):
+	data_set = MyTestSet(dataTest)
 	data_iter = DataLoader(dataset=data_set, \
 	                       batch_size=batch_size, \
 	                       num_workers=1, \

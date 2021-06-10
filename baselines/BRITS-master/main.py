@@ -18,7 +18,9 @@ import data_loader
 import pandas as pd
 import ujson as json
 
+from math import sqrt
 from sklearn import metrics
+from tslearn.metrics import dtw, dtw_path
 
 from ipdb import set_trace
 import pickle
@@ -32,8 +34,9 @@ parser.add_argument('--model', type=str, default='brits')
 parser.add_argument('--hid_size', type=int, default=50)
 parser.add_argument('--impute_weight', type=float, default=0.3)
 parser.add_argument('--label_weight', type=float, default=1.0)
-parser.add_argument('--missingRate',type=str,default= '0.5')
 
+parser.add_argument('--missingRate',type=str,default= '0.5')
+parser.add_argument('--fold',type=int,default= 0)
 parser.add_argument('--inPath',type=str,default= None)
 parser.add_argument('--outPath',type=str,default=None)
 parser.add_argument('--dataset',type=str,default="USCHAD.npz")
@@ -45,11 +48,11 @@ if args.outPath is None:
 
 
 
-def train(model, early_stopping,dataPath):
+def train(model, early_stopping,dataTrain):
 	optimizer = optim.Adam(model.parameters(), lr=1e-3)
 	
 	# data_iter = data_loader.get_loader(batch_size=args.batch_size)
-	data_iter = data_loader.get_train_loader(dataPath,batch_size=args.batch_size)
+	data_iter = data_loader.get_train_loader(dataTrain,batch_size=args.batch_size)
 	
 	for epoch in range(args.epochs):
 		model.train()
@@ -62,11 +65,11 @@ def train(model, early_stopping,dataPath):
 			
 			run_loss += ret['loss'].item()
 			
-			print('\r Progress epoch {}, {:.2f}%, average loss {}'.format(
-				epoch, (idx + 1) * 100.0 / len(data_iter),
-				       run_loss / (idx + 1.0)))
+			# print('\r Progress epoch {}, {:.2f}%, average loss {}'.format(
+			# 	epoch, (idx + 1) * 100.0 / len(data_iter),
+			# 	       run_loss / (idx + 1.0)))
 		
-		test_data_iter = data_loader.get_test_loader(
+		test_data_iter = data_loader.get_test_loader(dataTrain,
 			batch_size=args.batch_size)
 		valid_loss = evaluate(model, test_data_iter)
 		
@@ -159,27 +162,25 @@ def evaluate(model, val_iter):
 	save_impute = np.concatenate(save_impute, axis=0)
 	save_label = np.concatenate(save_label, axis=0)
 	pathResult = os.path.relpath('result/')
-	np.save(os.path.join(pathResult, '{}_data'.format(args.model)), save_impute)
-	np.save(os.path.join(pathResult, '{}_label'.format(args.model)), save_label)
-	
-	return sqrt(metrics.mean_squared_error(evals, imputations))
+	return sqrt(metrics.mean_squared_error(evals, imputations)),(save_impute,save_label)
 
 
-def test(model, savepath,dataPath):
+def test(model, savepath,dataTest):
 	model.load_state_dict(torch.load(savepath))
 	
-	test_data_iter = data_loader.get_test_loader(dataPath,
+	test_data_iter = data_loader.get_test_loader(dataTest,
 		batch_size=args.batch_size)
-	valid_loss = evaluate(model, test_data_iter)
+	valid_loss,imputation = evaluate(model, test_data_iter)
+	return imputation
 
 
-def run(dataPath):
+def run(dataTrain):
 	model = getattr(models,
 	                args.model).Model(args.hid_size, args.impute_weight,
 	                                  args.label_weight)
 	total_params = sum(p.numel() for p in model.parameters()
 	                   if p.requires_grad)
-	print('Total params is {}'.format(total_params))
+	#print('Total params is {}'.format(total_params))
 	
 	if torch.cuda.is_available():
 		model = model.cuda()
@@ -188,10 +189,9 @@ def run(dataPath):
 	# initialize the early_stopping object
 	# early stopping patience; how long to wait after last time validation loss improved.
 	patience = 10
-	early_stopping = EarlyStopping(savepath=os.path.relpath('result/resultFinalES.pt'), patience=patience, verbose=True)
-	train(model, early_stopping,dataPath)
-	with open('model_trained.pkl', 'wb') as output:
-		pickle.dump(model,output)
+	name = dataPath.split('/')[-1]
+	early_stopping = EarlyStopping(savepath=os.path.relpath(f'result/model{name}.pt'), patience=patience, verbose=True)
+	train(model, early_stopping,dataTrain)
 	
 
 
@@ -206,19 +206,25 @@ def evaluate_model(dataPath):
 	if torch.cuda.is_available():
 		model = model.cuda()
 	
-	savepath = os.path.relpath('result/resultFinal.pt')
-	test(model, savepath,dataPath)
+	#savepath = os.path.relpath('result/resultFinalES.pt')
+	name = dataPath.split('/')[-1]
+	savepath = os.path.join(args.outPath,'result',f'model{name}.pt')
+	return test(model, savepath,dataPath)
 
 
 if __name__ == '__main__':
 	#process the data:
 	
-	i = 0
-	#DG = dataGenerator(missing = args.missingRate)
-	#DG.setPath(args.inPath,args.outPath)
-	#DG.myPreprocess(fold = i )
-	fileName  = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{i}'
-	run(os.path.join(args.outPath, fileName+'_train'))
+	DG = dataGenerator(missing = args.missingRate)
+	DG.setPath(args.inPath,args.outPath)
+	dataTrain,dataTest = DG.myPreprocess(fold = args.fold,save = False)
+	fileName  = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{args.fold}'
+
+	
+	run(dataTrain)
 	# evaluate the best model
-	evaluate_model(os.path.join(args.outPath, fileName+'_test'))
+	#os.path.join(args.outPath, fileName+'_test')
+	result = evaluate_model(dataTest)
+	name = os.path.join(args.outPath, fileName)
+	np.savez(name,impute =result[0],labels = result[1])
 	
