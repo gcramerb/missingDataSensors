@@ -158,7 +158,7 @@ def get_loader(batch_size=64, shuffle=True):
 	return data_iter
 
 
-def get_train_loader(dataPath,batch_size=100, shuffle=True):
+def get_train_loader(dataTrain,batch_size=100, shuffle=True):
 	data_set = MyTrainSet(dataTrain)
 	data_iter = DataLoader(dataset=data_set, \
 	                       batch_size=batch_size, \

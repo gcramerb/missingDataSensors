@@ -61,6 +61,7 @@ class dataGenerator:
 		DH.apply_missing(missing_factor=self.missing, missing_sensor=self.missing_sensor)
 		DH.impute('default')
 		DH.splitTrainTest(fold_i = fold)
+		self.xTrue = np.concatenate(DH.dataXtrain,axis = -1)
 		
 		jsonOutFileTrain = {}
 		jsonOutFileTest ={}

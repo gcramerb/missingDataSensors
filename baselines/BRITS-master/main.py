@@ -26,6 +26,8 @@ from ipdb import set_trace
 import pickle
 
 from dataGeneratorForBRITS import dataGenerator
+from sklearn.metrics import f1_score,accuracy_score
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--epochs', type=int, default=1000)
@@ -36,7 +38,7 @@ parser.add_argument('--impute_weight', type=float, default=0.3)
 parser.add_argument('--label_weight', type=float, default=1.0)
 
 parser.add_argument('--missingRate',type=str,default= '0.5')
-parser.add_argument('--fold',type=int,default= 0)
+parser.add_argument('--Nfolds',type=int,default= 10)
 parser.add_argument('--inPath',type=str,default= None)
 parser.add_argument('--outPath',type=str,default=None)
 parser.add_argument('--dataset',type=str,default="USCHAD.npz")
@@ -45,8 +47,10 @@ args = parser.parse_args()
 
 if args.outPath is None:
 	args.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Datasets\\USCHAD_forBRITS\\')
-
-
+else:
+	import sys
+	sys.path.insert(0, "/home/guilherme.silva/")
+	from missing_data.metrics import absoluteMetrics
 
 def train(model, early_stopping,dataTrain):
 	optimizer = optim.Adam(model.parameters(), lr=1e-3)
@@ -71,7 +75,7 @@ def train(model, early_stopping,dataTrain):
 		
 		test_data_iter = data_loader.get_test_loader(dataTrain,
 			batch_size=args.batch_size)
-		valid_loss = evaluate(model, test_data_iter)
+		valid_loss,d,b = evaluate(model, test_data_iter)
 		
 		# early stop
 		early_stopping(valid_loss, model)
@@ -189,8 +193,8 @@ def run(dataTrain):
 	# initialize the early_stopping object
 	# early stopping patience; how long to wait after last time validation loss improved.
 	patience = 10
-	name = dataPath.split('/')[-1]
-	early_stopping = EarlyStopping(savepath=os.path.relpath(f'result/model{name}.pt'), patience=patience, verbose=True)
+	name = args.dataset.split('.')[0]
+	early_stopping = EarlyStopping(savepath=os.path.relpath(f'result/model{args.model}_{name}.pt'), patience=patience, verbose=True)
 	train(model, early_stopping,dataTrain)
 	
 
@@ -207,24 +211,45 @@ def evaluate_model(dataTest):
 		model = model.cuda()
 	
 	#savepath = os.path.relpath('result/resultFinalES.pt')
-	name = dataPath.split('/')[-1]
-	savepath = os.path.join(args.outPath,'result',f'model{name}.pt')
+	name = args.dataset.split('.')[0]
+	savepath = os.path.join(args.outPath,'result',f'model{args.model}_{name}.pt')
 	imputed,labels = test(model, savepath,dataTest)
 	return imputed,labels
 
 
 if __name__ == '__main__':
 	#process the data:
-	
-	DG = dataGenerator(missing = args.missingRate)
-	DG.setPath(args.inPath,args.outPath)
-	dataTrain,dataTest = DG.myPreprocess(fold = args.fold,save = False)
-	fileName  = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{args.fold}'
-	
-	run(dataTrain)
-	# evaluate the best model
-	#os.path.join(args.outPath, fileName+'_test')
-	imputed,labels = evaluate_model(dataTest)
-	name = os.path.join(args.outPath, fileName)
-	np.savez(name,imputed = imputed,labels = labels)
+	metrics = []
+	AM = absoluteMetrics()
+	for fold_i in range(len(args.Nfolds)):
+		DG = dataGenerator(missing = args.missingRate)
+		DG.setPath(args.inPath,args.outPath)
+		dataTrain,dataTest = DG.myPreprocess(fold = fold_i,save = False)
+		fileName  = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{fold_i}'
+		
+		run(dataTrain)
+		# evaluate the best model
+		#os.path.join(args.outPath, fileName+'_test')
+		imputed,labels = evaluate_model(dataTest)
+		name = os.path.join(args.outPath, fileName)
+		
+		np.savez(name,imputed = imputed,labels = labels)
+		
+		with open(os.path.join(path,f'Catal_USCHAD_{args.fold}.pkl'), 'rb') as input:
+			catal_classifier = pickle.load(input)
+			
+		yPred = catal_classifier.predict(imputed)
+		mse = AM.myMSE(DG.xTrue,imputed)
+		acc = accuracy_score(yPred, labels)
+		f1 = f1_score(yPred, labels,average='macro')
+		
+		metrics.append([mse,acc,f1])
+	metrics =np.mean(metrics,axis=0)
+	print(metrics)
+	result = {}
+	result['MSE'] = str(metrics[0])
+	result['Acuracy'] = str(metrics[1])
+	result['f1'] = str(metrics[2])
+	with open(os.path.join(args.outPath,f'result_{args.dataset}_{args.missingRate}.json'), "w") as write_file:
+		json.dump(result, write_file)
 	
