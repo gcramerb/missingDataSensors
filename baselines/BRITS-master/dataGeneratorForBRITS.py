@@ -14,7 +14,7 @@ class dataGenerator:
 		self.outPath = None
 	def setPath(self, inPath = None,outPath = None):
 		if inPath is None:
-			self.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Datasets\\USCHAD_forBRITS\\')
+			self.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\USCHAD_forBRITS\\')
 			self.inPath = None
 		else:
 			self.inPath = inPath
@@ -50,7 +50,7 @@ class dataGenerator:
 		auxBackward['masks'] = auxBackward['masks'].astype('int32').tolist()
 		return auxForward ,auxBackward
 			
-	def myPreprocess(self,fold = 0,save = False):
+	def myPreprocess(self,fold,save = False):
 		processedFile = self.dataset.split('.')[0] +'_'+self.missing+ f'_fold_{fold}'
 		outputTrain = os.path.join(self.outPath,processedFile + '_train')
 		outputTest = os.path.join(self.outPath, processedFile + '_test')
@@ -59,7 +59,7 @@ class dataGenerator:
 		## getting the data:
 		missing_axis = np.sum(3 *  list(map(int, self.missing_sensor.split('.')[:])))
 		DH.apply_missing(missing_factor=self.missing, missing_sensor=self.missing_sensor)
-		DH.impute('default')
+		DH.impute('mean')
 		DH.splitTrainTest(fold_i = fold)
 		self.xTrue = np.concatenate(DH.dataXtrain,axis = -1)
 		

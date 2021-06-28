@@ -44,9 +44,9 @@ class dataHandler():
 
 	def load_data(self,dataset_name, sensor_factor='1.0.0',path = None):
 		if path is None:
-			data_input_file = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\' + dataset_name
+			data_input_file = os.path.join('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\', dataset_name)
 		else:
-			data_input_file = path + dataset_name
+			data_input_file = os.path.join(path,dataset_name)
 		#data_input_file = '/home/guilherme.silva/datasets/LOSO/' + dataset_name
 		tmp = np.load(data_input_file, allow_pickle=True)
 		X = tmp['X'].astype('float32')

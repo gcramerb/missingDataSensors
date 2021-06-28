@@ -5,8 +5,9 @@ import scipy.stats as st
 import os
 import sys
 import json
-sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\TCC\\TCC\\")
 from dataHandler import dataHandler
+
+sys.path.insert(0, "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\")
 from classifier import Catal
 
 

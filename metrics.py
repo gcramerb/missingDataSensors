@@ -34,10 +34,9 @@ class absoluteMetrics():
 		
 
 	def myMSE(self,xTrue,xRec):
-
 		#DH = dataHandler()
 		#testRec, testTrue, idxAll = DH.get_reconstructed(dataset_name, miss, imp, si, path, file, fold_i)
-		
+		rmse_list = []
 		# como aplicar vetorizacao nessa parte
 		for i in range(len(xRec)):
 			x = (xTrue[i, :, 0] - xRec[i, :, 0]) ** 2
@@ -52,11 +51,9 @@ class absoluteMetrics():
 
 
 	def pearson_corr(self,xTrue,xRec):
-		
 		shape = xTrue.shape
 		result = []
-	    # para cada arquivo de treino
-	    for i in range(shape[0]):
+		for i in range(shape[0]):
 		    x = (xTrue[i, :, 0] - xRec[i, :, 0]) ** 2
 		    idx = np.where(x != 0)[0]
 		    x_corr = pearsonr(xTrue[i, idx, 0], xRec[i, idx, 0])
@@ -65,5 +62,3 @@ class absoluteMetrics():
 		    result.append([x_corr,y_corr,z_corr])
 	
 		return np.mean(result,axis = 0)
-
-

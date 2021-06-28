@@ -24,7 +24,7 @@ from tslearn.metrics import dtw, dtw_path
 
 from ipdb import set_trace
 import pickle
-
+import sys
 from dataGeneratorForBRITS import dataGenerator
 from sklearn.metrics import f1_score,accuracy_score
 
@@ -38,25 +38,29 @@ parser.add_argument('--impute_weight', type=float, default=0.3)
 parser.add_argument('--label_weight', type=float, default=1.0)
 
 parser.add_argument('--missingRate',type=str,default= '0.5')
-parser.add_argument('--Nfolds',type=int,default= 10)
-parser.add_argument('--inPath',type=str,default= None)
+parser.add_argument('--Nfolds',type=int,default= 14)
+parser.add_argument('--inPath',type=str,default= os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'))
 parser.add_argument('--outPath',type=str,default=None)
 parser.add_argument('--dataset',type=str,default="USCHAD.npz")
 
 args = parser.parse_args()
 
 if args.outPath is None:
-	args.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Datasets\\USCHAD_forBRITS\\')
+	args.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\USCHAD_forBRITS\\')
+	sys.path.insert(0, 'C:\\Users\\gcram\\Documents\\Github\\')
+	from missingDataSensors.metrics import absoluteMetrics
 else:
 	import sys
 	sys.path.insert(0, "/home/guilherme.silva/")
+	classifiersPath = os.path.abspath('/mnt/users/guilherme.silva/classifiers/')
 	from missing_data.metrics import absoluteMetrics
 
-def train(model, early_stopping,dataTrain):
+
+def train(model, early_stopping, dataTrain):
 	optimizer = optim.Adam(model.parameters(), lr=1e-3)
 	
 	# data_iter = data_loader.get_loader(batch_size=args.batch_size)
-	data_iter = data_loader.get_train_loader(dataTrain,batch_size=args.batch_size)
+	data_iter = data_loader.get_train_loader(dataTrain, batch_size=args.batch_size)
 	
 	for epoch in range(args.epochs):
 		model.train()
@@ -68,20 +72,20 @@ def train(model, early_stopping,dataTrain):
 			ret = model.run_on_batch(data, optimizer, epoch)
 			
 			run_loss += ret['loss'].item()
-			
-			# print('\r Progress epoch {}, {:.2f}%, average loss {}'.format(
-			# 	epoch, (idx + 1) * 100.0 / len(data_iter),
-			# 	       run_loss / (idx + 1.0)))
+		
+		# print('\r Progress epoch {}, {:.2f}%, average loss {}'.format(
+		# 	epoch, (idx + 1) * 100.0 / len(data_iter),
+		# 	       run_loss / (idx + 1.0)))
 		
 		test_data_iter = data_loader.get_test_loader(dataTrain,
-			batch_size=args.batch_size)
-		valid_loss,d,b = evaluate(model, test_data_iter)
+		                                             batch_size=args.batch_size)
+		valid_loss, d, b = evaluate(model, test_data_iter)
 		
 		# early stop
 		early_stopping(valid_loss, model)
 		
 		if early_stopping.early_stop:
-			print("Early stopping")
+			#print("Early stopping")
 			break
 
 
@@ -158,27 +162,48 @@ def evaluate(model, val_iter):
 	evals = np.asarray(evals)
 	imputations = np.asarray(imputations)
 	
-	print('MAE', np.abs(evals - imputations).mean())
-	print('MRE', np.abs(evals - imputations).sum() / np.abs(evals).sum())
-	print('RMSE', sqrt(metrics.mean_squared_error(evals, imputations)))
-	print('TDI', np.asarray(loss_dtw).mean())
+	# print('MAE', np.abs(evals - imputations).mean())
+	# print('MRE', np.abs(evals - imputations).sum() / np.abs(evals).sum())
+	# print('RMSE', sqrt(metrics.mean_squared_error(evals, imputations)))
+	# print('TDI', np.asarray(loss_dtw).mean())
 	
 	save_impute = np.concatenate(save_impute, axis=0)
 	save_label = np.concatenate(save_label, axis=0)
 	pathResult = os.path.relpath('result/')
-	return sqrt(metrics.mean_squared_error(evals, imputations)),save_impute,save_label
+	return sqrt(mean_squared_error(evals, imputations)), save_impute, save_label
 
 
-def test(model, savepath,dataTest):
+def test(model, savepath, dataTest):
 	model.load_state_dict(torch.load(savepath))
 	
 	test_data_iter = data_loader.get_test_loader(dataTest,
-		batch_size=args.batch_size)
-	valid_loss,imputed,labels = evaluate(model, test_data_iter)
-	return imputed,labels
+	                                             batch_size=args.batch_size)
+	valid_loss, imputed, labels = evaluate(model, test_data_iter)
+	return imputed, labels
 
 
 def run(dataTrain):
+	model = getattr(models,
+	                args.model).Model(args.hid_size, args.impute_weight,
+	                                  args.label_weight)
+	total_params = sum(p.numel() for p in model.parameters()
+	                   if p.requires_grad)
+	# print('Total params is {}'.format(total_params))
+	
+	if torch.cuda.is_available():
+		model = model.cuda()
+	
+	# Early Stopping
+	# initialize the early_stopping object
+	# early stopping patience; how long to wait after last time validation loss improved.
+	patience = 10
+	name = args.dataset.split('.')[0]
+	early_stopping = EarlyStopping(savepath=os.path.join(args.outPath, f'model{args.model}_{name}.pt'),
+	                               patience=patience, verbose=False)
+	train(model, early_stopping, dataTrain)
+
+
+def evaluate_model(dataTest):
 	model = getattr(models,
 	                args.model).Model(args.hid_size, args.impute_weight,
 	                                  args.label_weight)
@@ -189,67 +214,50 @@ def run(dataTrain):
 	if torch.cuda.is_available():
 		model = model.cuda()
 	
-	# Early Stopping
-	# initialize the early_stopping object
-	# early stopping patience; how long to wait after last time validation loss improved.
-	patience = 10
+	# savepath = os.path.relpath('result/resultFinalES.pt')
 	name = args.dataset.split('.')[0]
-	early_stopping = EarlyStopping(savepath=os.path.relpath(f'result/model{args.model}_{name}.pt'), patience=patience, verbose=True)
-	train(model, early_stopping,dataTrain)
-	
-
-
-def evaluate_model(dataTest):
-	model = getattr(models,
-	                args.model).Model(args.hid_size, args.impute_weight,
-	                                  args.label_weight)
-	total_params = sum(p.numel() for p in model.parameters()
-	                   if p.requires_grad)
-	print('Total params is {}'.format(total_params))
-	
-	if torch.cuda.is_available():
-		model = model.cuda()
-	
-	#savepath = os.path.relpath('result/resultFinalES.pt')
-	name = args.dataset.split('.')[0]
-	savepath = os.path.join(args.outPath,'result',f'model{args.model}_{name}.pt')
-	imputed,labels = test(model, savepath,dataTest)
-	return imputed,labels
+	savepath = os.path.join(args.outPath, f'model{args.model}_{name}.pt')
+	imputed, labels = test(model, savepath, dataTest)
+	return imputed, labels
 
 
 if __name__ == '__main__':
-	#process the data:
+	# process the data:
 	metrics = []
 	AM = absoluteMetrics()
-	for fold_i in range(len(args.Nfolds)):
-		DG = dataGenerator(missing = args.missingRate)
-		DG.setPath(args.inPath,args.outPath)
-		dataTrain,dataTest = DG.myPreprocess(fold = fold_i,save = False)
-		fileName  = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{fold_i}'
+	for fold_i in range(args.Nfolds):
+		DG = dataGenerator(missing=args.missingRate)
+		DG.setPath(args.inPath, args.outPath)
+		dataTrain, dataTest = DG.myPreprocess(fold=fold_i, save=False)
+		fileName = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{fold_i}'
 		
 		run(dataTrain)
 		# evaluate the best model
-		#os.path.join(args.outPath, fileName+'_test')
-		imputed,labels = evaluate_model(dataTest)
+		# os.path.join(args.outPath, fileName+'_test')
+		imputed, labels = evaluate_model(dataTest)
 		name = os.path.join(args.outPath, fileName)
 		
-		np.savez(name,imputed = imputed,labels = labels)
+		# np.savez(name,imputed = imputed,labels = labels)
 		
-		with open(os.path.join(path,f'Catal_USCHAD_{args.fold}.pkl'), 'rb') as input:
-			catal_classifier = pickle.load(input)
-			
-		yPred = catal_classifier.predict(imputed)
-		mse = AM.myMSE(DG.xTrue,imputed)
-		acc = accuracy_score(yPred, labels)
-		f1 = f1_score(yPred, labels,average='macro')
+		with open(
+				os.path.join(classifiersPath, f'Catal_USCHAD_{fold_i}.pkl'),
+				'rb') as inp:
+			catal_classifier = pickle.load(inp)
 		
-		metrics.append([mse,acc,f1])
-	metrics =np.mean(metrics,axis=0)
-	print(metrics)
+		yPred = catal_classifier.predict(np.transpose(imputed, (0, 2, 1)))
+		mse = AM.myMSE(DG.xTrue, np.transpose(imputed, (0, 2, 1)))
+		acc = accuracy_score(yPred, np.squeeze(labels))
+		f1 = f1_score(yPred, np.squeeze(labels), average='macro')
+		metrics.append([mse, acc, f1])
+	
+	metricsM = np.mean(metrics, axis=0)
+	print(metricsM)
 	result = {}
-	result['MSE'] = str(metrics[0])
-	result['Acuracy'] = str(metrics[1])
-	result['f1'] = str(metrics[2])
-	with open(os.path.join(args.outPath,f'result_{args.dataset}_{args.missingRate}.json'), "w") as write_file:
+	result['MSE'] = str(metricsM[0])
+	result['Acuracy'] = str(metricsM[1])
+	result['f1'] = str(metricsM[2])
+	savePath = os.path.join(args.outPath, f'result_{args.dataset.split(".")[0]}_{args.missingRate}')
+	with open(savePath + '.json', "w") as write_file:
 		json.dump(result, write_file)
+	np.save(savePath + 'ALL',metrics = metrics)
 	

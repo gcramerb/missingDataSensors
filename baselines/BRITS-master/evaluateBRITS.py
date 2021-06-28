@@ -65,7 +65,8 @@ if __name__ == '__main__':
 	#trainClassifiers(args.dataset,args.inPath,args.outPath)
 
 
-	
+	res = np.load(os.path.abspath("C:\\Users\\gcram\\Documents\\Datasets\\USCHAD_forBRITS\\USCHAD_0.9_fold_0.npz"),allow_pickle = True)
+	pass
 	dataset = 'USCHAD.npz'
 	missing_list = ['0.5']
 	# missing_list = ['0.2']
