@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import sys
 import os
 sys.path.insert(0, os.path.realpath('../../../'))
-from missingDataSensors.utils import classesNames
+from utils import classesNames
 from itertools import chain
 
 

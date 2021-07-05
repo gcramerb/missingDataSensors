@@ -18,7 +18,7 @@ from sklearn import metrics
 # from ipdb import set_trace
 
 SEQ_LEN = 500
-RNN_HID_SIZE = 50
+RNN_HID_SIZE = 32
 
 
 class Model(nn.Module):
