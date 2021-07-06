@@ -1,3 +1,11 @@
+Literature projects/
+slurm/
+venv/
+results/
+baselines/
+__pycache__/
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .idea/

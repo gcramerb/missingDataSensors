@@ -7,7 +7,7 @@ import glob
 import json
 import seaborn as sn
 import sys
-sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\TCC\\TCC\\")
+sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\missingDataSensors\\")
 from dataHandler import dataHandler
 from utils import classesNames
 

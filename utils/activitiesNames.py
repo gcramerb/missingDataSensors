@@ -138,16 +138,3 @@ def classesNames(dataset):
         }
         class_names = actNameWISDM
     return class_names
-def saveAll(filename,result,config,curva,m):
-
-    info = dict()
-    info['resultado'] = result
-    info['hiperparametros'] = config
-    info['curva'] = curva
-    info['missing'] = m
-
-    path_save = filename + '/informations.json'
-    with open(path_save, 'w') as fp:
-        json.dump(info, fp)
-
-
