@@ -4,19 +4,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
-#from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-
-from Autoencoder_creation.convAE_pytorch import ConvAutoencoder
+from Autoencoder.convAE_pytorch import ConvAutoencoder
 import sys
 import os
 sys.path.insert(0, "../")
-from dataHandler import dataHandler
-from utils import saveAll
-#from ES import EarlyStop
-
-from custom_losses import SoftDTW,DCT_Loss,W_MSE
+from utils.dataHandler import dataHandler
+from Autoencode.modelUtils.custom_losses import SoftDTW,DCT_Loss,W_MSE
 
 ## getting the data:
 m = '0.5'
@@ -47,8 +42,6 @@ dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, path)
 pred, testGT, testRec,y_all = myModel.predict(testloader)
 
-#TODO adicionar a funcao de metricas separada do DH
-metrics = eval_result(pred_all,testGT_all)
+#metrics = eval_result(pred_all,testGT_all)
 #json.dump()
-
-print(metrics)
+#print(metrics)

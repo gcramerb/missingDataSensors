@@ -40,7 +40,6 @@ class StandardMethods:
 		return xMissing
 	
 	def MatrixFactorization(self,xMissing):
-		#TODO : investigar erro
 		for i,sample in enumerate(xMissing):
 			m = MatrixFactorization()
 			try:
