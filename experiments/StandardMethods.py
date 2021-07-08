@@ -47,13 +47,14 @@ if __name__ == '__main__':
 		DH.splitTrainTest(fold_i=fold_i)
 		testMiss = np.concatenate(DH.dataXmissingTest, axis=-1)
 		test = np.concatenate(DH.dataXtest, axis=-1)
+		trainX = np.concatenate(DH.dataXtrain, axis=-1)
+		trainY =  DH.dataYtrain
 		y = DH.dataYtest
-		
-		with open(os.path.join(classifiersPath, f'Catal_USCHAD_{fold_i}.pkl'),'rb') as inp:
-			catal_classifier = pickle.load(inp)
 		sm = SM()
 		xRec = sm.runAll(testMiss)
 		del sm
+		catal_classifier = Catal()
+		catal_classifier.fit(trainX,trainY)
 		yPred = catal_classifier.predict(xRec)
 		mse = AM.myMSE(test, xRec)
 		acc = accuracy_score(yPred, y)
