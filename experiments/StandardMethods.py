@@ -18,7 +18,7 @@ parser.add_argument('--dataset', type=str, default="USCHAD.npz")
 args = parser.parse_args()
 
 if args.slurm:
-	sys.path.insert(0, "/home/guilherme.silva/missing_data")
+	sys.path.insert(0, "/home/guilherme.silva/missingDataSensors")
 	from utils.dataHandler import dataHandler
 	from utils.metrics import absoluteMetrics
 	sys.path.insert(0, "/home/guilherme.silva/classifiers")

@@ -16,8 +16,6 @@ import sys
 import os
 sys.path.insert(0, os.path.realpath('../../../'))
 from .activitiesNames import classesNames
-from itertools import chain
-
 
 
 class dataHandler():
