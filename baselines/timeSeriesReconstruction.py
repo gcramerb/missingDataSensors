@@ -17,6 +17,7 @@ from copy import deepcopy
 
 class StandardMethods:
 	def Sarimax(self,xMissing,missingAxis = [0,1,2],seasonal = True):
+		works = True
 		if seasonal:
 			sOrder = (4,1,1,100)
 		else:
@@ -27,26 +28,34 @@ class StandardMethods:
 			for j in missingAxis:
 				data = np.squeeze(xMissing[i,:,j])
 				model = SARIMAX(data, exog=exog[i],  seasonal_order=sOrder)
-				model_fit = model.fit(disp=False)
-				idx_missing = np.argwhere(np.isnan(data))  # All axis has the same missing points
-				idx_missing = idx_missing.flatten()
-				data[idx_missing] = model_fit.predict(start=idx_missing[0], end=idx_missing[-1], dynamic=True)
-		return xMissing
+				try:
+					model_fit = model.fit(disp=False)
+					idx_missing = np.argwhere(np.isnan(data))  # All axis has the same missing points
+					idx_missing = idx_missing.flatten()
+					data[idx_missing] = model_fit.predict(start=idx_missing[0], end=idx_missing[-1], dynamic=True)
+				except:
+					works = False
+		return works, xMissing
 	
 	def MICE(self,xMissing):
+		works = True
 		for i,sample in enumerate(xMissing):
-			mice_impute = IterativeImputer()
-			xMissing[i] = mice_impute.fit_transform(sample)
-		return xMissing
+			try:
+				mice_impute = IterativeImputer()
+				xMissing[i] = mice_impute.fit_transform(sample)
+			except:
+				works = False
+		return works,xMissing
 	
 	def MatrixFactorization(self,xMissing):
+		works = True
 		for i,sample in enumerate(xMissing):
 			m = MatrixFactorization()
 			try:
 				xMissing[i] = m.fit_transform(sample)
 			except:
-				a = 4
-		return xMissing
+				works = False
+		return works,xMissing
 
 	def ExpMaximization(self,xMissing):
 		for i,sample in enumerate(xMissing):
@@ -54,12 +63,31 @@ class StandardMethods:
 		return xMissing
 	def runAll(self,xMissing):
 		results = dict()
-		#results['SARIMAX'] = self.Sarimax(deepcopy(xMissing))
-		#results['ARX'] =  self.Sarimax(deepcopy(xMissing),seasonal = False)
-		#results['MICE'] = self.MICE(deepcopy(xMissing))
-		results['MF'] = self.MatrixFactorization(deepcopy(xMissing))
-		results['EM'] = self.ExpMaximization(deepcopy(xMissing))
+		auxWorks,aux = self.Sarimax(deepcopy(xMissing))
+		if auxWorks:
+			results['SARIMAX'] = aux
+		auxWorks, aux = self.Sarimax(deepcopy(xMissing), seasonal=False)
+		if auxWorks:
+			results['ARX'] = aux
+		auxWorks, aux = self.MICE(deepcopy(xMissing))
+		if auxWorks:
+			results['MICE'] =aux
+		auxWorks, aux = self.MatrixFactorization(deepcopy(xMissing))
+		if auxWorks:
+			results['MF'] =  aux
+		auxWorks, aux = self.ExpMaximization(deepcopy(xMissing))
+		if auxWorks:
+			results['EM'] = aux
 		return results
-
-
-			
+	
+	def runMethod(self,sMissing,method):
+		if method == 'sarimax':
+			return self.Sarimax(deepcopy(xMissing))
+		elif method == "arx":
+			return self.Sarimax(deepcopy(xMissing),seasonal = False)
+		elif method == "MICE":
+			return self.MICE(deepcopy(xMissing))
+		elif method == "matrixFactorization":
+			return self.MatrixFactorization(deepcopy(xMissing))
+		elif method == "expectationMaximization":
+			return self.ExpMaximization(deepcopy(xMissing))

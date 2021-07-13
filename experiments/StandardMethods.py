@@ -15,6 +15,7 @@ parser.add_argument('--outPath', type=str, default=None)
 parser.add_argument('--missingRate',type=str,default= '0.5')
 parser.add_argument('--Nfolds',type=int,default= 14)
 parser.add_argument('--dataset', type=str, default="USCHAD.npz")
+parser.add_argument('--method', type=str, default="expectationMaximization")
 args = parser.parse_args()
 
 if args.slurm:
@@ -51,7 +52,9 @@ if __name__ == '__main__':
 		trainY =  DH.dataYtrain
 		y = DH.dataYtest
 		sm = SM()
-		xRec = sm.runAll(testMiss)
+		works,xRec = sm.runMethod(testMiss,method)
+		if not works:
+			print(f'\n\n Erro in folf{fold_i} do metodos {args.method}')
 		del sm
 		catal_classifier = Catal()
 		catal_classifier.fit(trainX,trainY)
