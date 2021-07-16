@@ -10,6 +10,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--slurm', action='store_true')
+parser.add_argument('--debug', action='store_true')
 parser.add_argument('--inPath', type=str, default=None)
 parser.add_argument('--outPath', type=str, default=None)
 parser.add_argument('--missingRate',type=str,default= '0.5')
@@ -25,6 +26,10 @@ if args.slurm:
 	sys.path.insert(0, "/home/guilherme.silva/classifiers")
 	classifiersPath = os.path.abspath("/home/guilherme.silva/classifiers/trained/")
 	from Catal import Catal
+	if args.debug:
+		import pydevd_pycharm
+		pydevd_pycharm.settrace('172.22.100.3', port=22, stdoutToServer=True, stderrToServer=True, suspend=False)
+		
 else:
 	args.inPath = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
 	args.outPath = "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\"
@@ -52,7 +57,7 @@ if __name__ == '__main__':
 		trainY =  DH.dataYtrain
 		y = DH.dataYtest
 		sm = SM()
-		works,xRec = sm.runMethod(testMiss,method)
+		works,xRec = sm.runMethod(testMiss,args.method)
 		if not works:
 			print(f'\n\n Erro in folf{fold_i} do metodos {args.method}')
 		del sm
@@ -60,13 +65,15 @@ if __name__ == '__main__':
 		catal_classifier.fit(trainX,trainY)
 		yPred = catal_classifier.predict(xRec)
 		mse = AM.myMSE(test, xRec)
-		acc = accuracy_score(yPred, y)
-		f1 = f1_score(yPred, y, average='macro')
+		acc = accuracy_score(y,yPred)
+		f1 = f1_score(y,yPred, average='macro')
 		metrics.append([mse, acc, f1])
 		del DH
 	
 	metricsM = np.mean(metrics, axis=0)
-	print(metricsM)
+	metrics = np.array(metrics)
+	ic_acc = st.t.interval(alpha=0.95, df=len(metrics[:,1]) - 1, loc=np.mean(metrics[:,1]), scale=st.sem(metrics[:,1]))
+	ic_f1 = st.t.interval(alpha=0.95, df=len(metrics[:, 2]) - 1, loc=np.mean(metrics[:, 2]),scale=st.sem(metrics[:,2]))
 	result = {}
 	result['MSE'] = str(metricsM[0])
 	result['Acuracy'] = str(metricsM[1])
@@ -74,4 +81,4 @@ if __name__ == '__main__':
 	savePath = os.path.join(args.outPath, f'result_{args.method}_{args.dataset.split(".")[0]}_{args.missingRate}')
 	with open(savePath + '.json', "w") as write_file:
 		json.dump(result, write_file)
-	np.save(savePath + 'ALL', metrics=metrics)
+	np.save(savePath + 'ALL.npz', metrics=metrics,ic_acc = ic_acc,ic_f1 = ic_f1)

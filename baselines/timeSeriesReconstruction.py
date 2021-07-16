@@ -58,9 +58,14 @@ class StandardMethods:
 		return works,xMissing
 
 	def ExpMaximization(self,xMissing):
+		works = True
 		for i,sample in enumerate(xMissing):
-			xMissing[i] = impy.em(sample)
-		return xMissing
+			try:
+				xMissing[i] = impy.em(sample)
+			except:
+				works =False
+		return works,xMissing
+	
 	def runAll(self,xMissing):
 		results = dict()
 		auxWorks,aux = self.Sarimax(deepcopy(xMissing))
@@ -80,7 +85,7 @@ class StandardMethods:
 			results['EM'] = aux
 		return results
 	
-	def runMethod(self,sMissing,method):
+	def runMethod(self,xMissing,method):
 		if method == 'sarimax':
 			return self.Sarimax(deepcopy(xMissing))
 		elif method == "arx":
