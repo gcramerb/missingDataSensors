@@ -41,7 +41,7 @@ class StandardMethods:
 		works = True
 		for i,sample in enumerate(xMissing):
 			try:
-				mice_impute = IterativeImputer()
+				mice_impute = IterativeImputer(verbose=False)
 				xMissing[i] = mice_impute.fit_transform(sample)
 			except:
 				works = False
@@ -50,7 +50,7 @@ class StandardMethods:
 	def MatrixFactorization(self,xMissing):
 		works = True
 		for i,sample in enumerate(xMissing):
-			m = MatrixFactorization()
+			m = MatrixFactorization(verbose=False)
 			try:
 				xMissing[i] = m.fit_transform(sample)
 			except:

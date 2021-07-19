@@ -30,6 +30,10 @@ from sklearn.metrics import f1_score,accuracy_score
 
 
 parser = argparse.ArgumentParser()
+
+
+parser.add_argument('--slurm', action='store_true')
+
 parser.add_argument('--epochs', type=int, default=2000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--model', type=str, default='brits')
@@ -45,15 +49,27 @@ parser.add_argument('--dataset',type=str,default="USCHAD.npz")
 
 args = parser.parse_args()
 
-if args.outPath is None:
+if args.slurm:
+	import sys
+	sys.path.insert(0, "/home/guilherme.silva/")
+	classifiersPath = os.path.abspath('/mnt/users/guilherme.silva/classifiers/trained/')
+	from missing_data.metrics import absoluteMetrics
+	from classifiers.Catal import Catal
+	
+	try:
+		with open(os.path.join(classifiersPath, f'Catal_USCHAD_{0}.pkl'),'rb') as inp:
+			junk = pickle.load(inp)
+	except:
+		print('Classifiers Not working !!!\n')
+	
+
+
+else:
+
 	args.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\USCHAD_forBRITS\\')
 	sys.path.insert(0, 'C:\\Users\\gcram\\Documents\\Github\\')
 	from missingDataSensors.metrics import absoluteMetrics
-else:
-	import sys
-	sys.path.insert(0, "/home/guilherme.silva/")
-	classifiersPath = os.path.abspath('/mnt/users/guilherme.silva/classifiers/')
-	from missing_data.metrics import absoluteMetrics
+	
 
 
 def train(model, early_stopping, dataTrain):
@@ -73,9 +89,9 @@ def train(model, early_stopping, dataTrain):
 			
 			run_loss += ret['loss'].item()
 		
-		# print('\r Progress epoch {}, {:.2f}%, average loss {}'.format(
-		# 	epoch, (idx + 1) * 100.0 / len(data_iter),
-		# 	       run_loss / (idx + 1.0)))
+		print('\r Progress epoch {}, {:.2f}%, average loss {}'.format(
+		 	epoch, (idx + 1) * 100.0 / len(data_iter),
+		 	       run_loss / (idx + 1.0)))
 		
 		test_data_iter = data_loader.get_test_loader(dataTrain,
 		                                             batch_size=args.batch_size)
@@ -238,26 +254,30 @@ if __name__ == '__main__':
 		name = os.path.join(args.outPath, fileName)
 		
 		# np.savez(name,imputed = imputed,labels = labels)
-		
+
 		with open(
 				os.path.join(classifiersPath, f'Catal_USCHAD_{fold_i}.pkl'),
 				'rb') as inp:
 			catal_classifier = pickle.load(inp)
-		
+			
 		yPred = catal_classifier.predict(np.transpose(imputed, (0, 2, 1)))
 		mse = AM.myMSE(DG.xTrue, np.transpose(imputed, (0, 2, 1)))
-		acc = accuracy_score(yPred, np.squeeze(labels))
-		f1 = f1_score(yPred, np.squeeze(labels), average='macro')
+		acc = accuracy_score(np.squeeze(labels),yPred)
+		f1 = f1_score(np.squeeze(labels),yPred, average='macro')
 		metrics.append([mse, acc, f1])
 	
 	metricsM = np.mean(metrics, axis=0)
-	print(metricsM)
+	metrics = np.array(metrics)
+	ic_acc = st.t.interval(alpha=0.95, df=len(metrics[:,1]) - 1, loc=np.mean(metrics[:,1]), scale=st.sem(metrics[:,1]))
+	ic_f1 = st.t.interval(alpha=0.95, df=len(metrics[:, 2]) - 1, loc=np.mean(metrics[:, 2]),scale=st.sem(metrics[:,2]))
 	result = {}
 	result['MSE'] = str(metricsM[0])
 	result['Acuracy'] = str(metricsM[1])
+	result['Acc_icLow'] = ic_acc[0]
+	result['Acc_icHigh'] = ic_acc[1]
 	result['f1'] = str(metricsM[2])
+	result['F1_icLow'] = ic_f1[0]
+	result['F1_icHigh'] = ic_f1[1]
 	savePath = os.path.join(args.outPath, f'result_{args.dataset.split(".")[0]}_{args.missingRate}')
 	with open(savePath + '.json', "w") as write_file:
 		json.dump(result, write_file)
-	np.save(savePath + 'ALL',metrics = metrics)
-	

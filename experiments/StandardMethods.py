@@ -13,16 +13,17 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--inPath', type=str, default=None)
 parser.add_argument('--outPath', type=str, default=None)
-parser.add_argument('--missingRate',type=str,default= '0.5')
+parser.add_argument('--missingRate',type=str,default= '0.9')
 parser.add_argument('--Nfolds',type=int,default= 14)
 parser.add_argument('--dataset', type=str, default="USCHAD.npz")
-parser.add_argument('--method', type=str, default="expectationMaximization")
+parser.add_argument('--method', type=str, default="MICE")
 args = parser.parse_args()
 
 if args.slurm:
 	sys.path.insert(0, "/home/guilherme.silva/missingDataSensors")
 	from utils.dataHandler import dataHandler
 	from utils.metrics import absoluteMetrics
+	from baselines.timeSeriesReconstruction import StandardMethods as SM
 	sys.path.insert(0, "/home/guilherme.silva/classifiers")
 	classifiersPath = os.path.abspath("/home/guilherme.silva/classifiers/trained/")
 	from Catal import Catal
@@ -32,14 +33,14 @@ if args.slurm:
 		
 else:
 	args.inPath = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
-	args.outPath = "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\"
+	args.outPath = "C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\"
 	sys.path.insert(0, args.outPath )
 	from Catal import Catal
 	sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\missingDataSensors\\")
 	from utils.dataHandler import dataHandler
 	from utils.metrics import absoluteMetrics
 	from baselines.timeSeriesReconstruction import StandardMethods as SM
-	classifiersPath =  os.path.abspath("C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\trained\\")
+	classifiersPath =  os.path.abspath("C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\trained\\")
 
 if __name__ == '__main__':
 	# process the data:
@@ -77,8 +78,12 @@ if __name__ == '__main__':
 	result = {}
 	result['MSE'] = str(metricsM[0])
 	result['Acuracy'] = str(metricsM[1])
+	result['Acc_icLow'] = ic_acc[0]
+	result['Acc_icHigh'] = ic_acc[1]
 	result['f1'] = str(metricsM[2])
+	result['F1_icLow'] = ic_f1[0]
+	result['F1_icHigh'] = ic_f1[1]
 	savePath = os.path.join(args.outPath, f'result_{args.method}_{args.dataset.split(".")[0]}_{args.missingRate}')
 	with open(savePath + '.json', "w") as write_file:
 		json.dump(result, write_file)
-	np.save(savePath + 'ALL.npz', metrics=metrics,ic_acc = ic_acc,ic_f1 = ic_f1)
+	#np.save(savePath + 'ALL.npz', metrics=metrics,ic_acc = ic_acc,ic_f1 = ic_f1)
