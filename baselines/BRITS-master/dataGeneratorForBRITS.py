@@ -1,7 +1,14 @@
 from sklearn.metrics import mean_squared_error
 import numpy as np
-from dataHandler import dataHandler
-import os
+import os,sys
+try:
+	sys.path.insert(0,'../../utils/')
+	from dataHandler import dataHandler
+except:
+	sys.path.insert(0,'../utils/')
+	from dataHandler import dataHandler
+	
+
 import json
 
 
@@ -26,7 +33,7 @@ class dataGenerator:
 		auxForward['masks'] = np.ones([shapes[0], shapes[1]])
 		auxForward['masks'][idx] = np.concatenate([np.zeros(missing_axis), np.ones(shapes[-1] - missing_axis)])
 		auxForward['evals'] = x.tolist()
-		auxForward['eval_masks'] = np.ones([shapes[0], shapes[1]]).tolist()
+		auxForward['eval_masks'] = np.ones([shapes[0], shapes[1]]).astype('int32').tolist()
 		auxForward['forwards'] =  xRec.tolist()
 		auxForward['deltas'] = np.zeros([shapes[0], shapes[1]])
 		for j in range(1, shapes[0]):
@@ -40,7 +47,7 @@ class dataGenerator:
 		auxBackward['masks'] = np.ones([shapes[0], shapes[1]])
 		auxBackward['masks'][shapes[1] - idx -1] = np.concatenate([np.zeros(missing_axis), np.ones(shapes[-1] - missing_axis)])
 		auxBackward['evals'] = x[::-1].tolist()
-		auxBackward['eval_masks'] = np.ones([shapes[0], shapes[1]]).tolist()
+		auxBackward['eval_masks'] = np.ones([shapes[0], shapes[1]]).astype('int32').tolist()
 		auxBackward['forwards'] =  xRec.tolist()
 		auxBackward['deltas'] = np.zeros([shapes[0], shapes[1]])
 		for j in range(1, shapes[1]):
@@ -119,7 +126,7 @@ class dataGenerator:
 				sampleDict['forward'] = forward
 				sampleDict['backward'] = backward
 				jsonOutFileTest.append(json.dumps(sampleDict))
-			return jsonOutFileTrain,jsonOutFileTest
+			return jsonOutFileTrain,jsonOutFileTest,idx['test']
 		return (None,None)
 
 		

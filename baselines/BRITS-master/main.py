@@ -8,12 +8,10 @@ from torch.optim.lr_scheduler import StepLR
 from support.early_stopping import EarlyStopping
 import numpy as np
 
-import time
-import os
+import time,os,sys,argparse
 import utils
 import models
 from models import rits_i, brits_i, rits, brits, gru_d, m_rnn
-import argparse
 import data_loader
 import pandas as pd
 import ujson as json
@@ -23,10 +21,9 @@ from sklearn import metrics
 from tslearn.metrics import dtw, dtw_path
 
 from ipdb import set_trace
-import pickle
-import sys
+import pickle5 as pickle
 from dataGeneratorForBRITS import dataGenerator
-from sklearn.metrics import f1_score,accuracy_score
+from sklearn.metrics import f1_score,accuracy_score,mean_squared_error
 
 
 parser = argparse.ArgumentParser()
@@ -42,7 +39,7 @@ parser.add_argument('--impute_weight', type=float, default=0.3)
 parser.add_argument('--label_weight', type=float, default=1.0)
 
 parser.add_argument('--missingRate',type=str,default= '0.5')
-parser.add_argument('--Nfolds',type=int,default= 14)
+parser.add_argument('--Nfolds',type=int,default= 1)
 parser.add_argument('--inPath',type=str,default= os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'))
 parser.add_argument('--outPath',type=str,default=None)
 parser.add_argument('--dataset',type=str,default="USCHAD.npz")
@@ -67,8 +64,12 @@ if args.slurm:
 else:
 
 	args.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\USCHAD_forBRITS\\')
+	classifiersPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\trained\\')
 	sys.path.insert(0, 'C:\\Users\\gcram\\Documents\\Github\\')
-	from missingDataSensors.metrics import absoluteMetrics
+	from missingDataSensors.utils.metrics import absoluteMetrics
+	
+	sys.path.insert(0, 'C:\\Users\\gcram\\Documents\\Smart Sense\\')
+	from classifiers.Catal import Catal
 	
 
 
@@ -212,17 +213,21 @@ def run(dataTrain):
 	# Early Stopping
 	# initialize the early_stopping object
 	# early stopping patience; how long to wait after last time validation loss improved.
-	patience = 10
+	patience = 25
 	name = args.dataset.split('.')[0]
 	early_stopping = EarlyStopping(savepath=os.path.join(args.outPath, f'model{args.model}_{name}.pt'),
 	                               patience=patience, verbose=False)
 	train(model, early_stopping, dataTrain)
 
 
-def evaluate_model(dataTest):
-	model = getattr(models,
-	                args.model).Model(args.hid_size, args.impute_weight,
-	                                  args.label_weight)
+def evaluate_model(dataTest,saved = False,fold = None):
+	if saved:
+		with open(os.path.join(classifiersPath,f'model_BRITS_fold{fold}.pkl'),'rb') as inp:
+			model = pickle.load(inp)
+	else:
+		model = getattr(models,
+		                args.model).Model(args.hid_size, args.impute_weight,
+		                                  args.label_weight)
 	total_params = sum(p.numel() for p in model.parameters()
 	                   if p.requires_grad)
 	#print('Total params is {}'.format(total_params))
@@ -244,13 +249,18 @@ if __name__ == '__main__':
 	for fold_i in range(args.Nfolds):
 		DG = dataGenerator(missing=args.missingRate)
 		DG.setPath(args.inPath, args.outPath)
-		dataTrain, dataTest = DG.myPreprocess(fold=fold_i, save=False)
+		dataTrain, dataTest,idx_test = DG.myPreprocess(fold=fold_i, save=False)
 		fileName = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{fold_i}'
 		
 		run(dataTrain)
 		# evaluate the best model
 		# os.path.join(args.outPath, fileName+'_test')
-		imputed, labels = evaluate_model(dataTest)
+		imp, labels = evaluate_model(dataTest)
+		imputed = copy.deepcopy(DG.xTrue)
+		for i,idx in enumerate(idx_test):
+			imputed[i,idx,0] = imp[i,0,idx]
+			imputed[i, idx, 0] = imp[i, 1, idx]
+			imputed[i, idx, 0] = imp[i, 2, idx]
 		name = os.path.join(args.outPath, fileName)
 		
 		# np.savez(name,imputed = imputed,labels = labels)
@@ -259,9 +269,10 @@ if __name__ == '__main__':
 				os.path.join(classifiersPath, f'Catal_USCHAD_{fold_i}.pkl'),
 				'rb') as inp:
 			catal_classifier = pickle.load(inp)
-			
-		yPred = catal_classifier.predict(np.transpose(imputed, (0, 2, 1)))
-		mse = AM.myMSE(DG.xTrue, np.transpose(imputed, (0, 2, 1)))
+		
+		#np.transpose(imputed, (0, 2, 1)
+		yPred = catal_classifier.predict(imputed)
+		mse = AM.myMSE(DG.xTrue, imputed)
 		acc = accuracy_score(np.squeeze(labels),yPred)
 		f1 = f1_score(np.squeeze(labels),yPred, average='macro')
 		metrics.append([mse, acc, f1])

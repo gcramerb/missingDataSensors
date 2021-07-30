@@ -13,10 +13,10 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--inPath', type=str, default=None)
 parser.add_argument('--outPath', type=str, default=None)
-parser.add_argument('--missingRate',type=str,default= '0.9')
+parser.add_argument('--missingRate',type=str,default= '0.2')
 parser.add_argument('--Nfolds',type=int,default= 14)
 parser.add_argument('--dataset', type=str, default="USCHAD.npz")
-parser.add_argument('--method', type=str, default="MICE")
+parser.add_argument('--method', type=str, default="sarimax")
 args = parser.parse_args()
 
 if args.slurm:
@@ -55,9 +55,20 @@ if __name__ == '__main__':
 		testMiss = np.concatenate(DH.dataXmissingTest, axis=-1)
 		test = np.concatenate(DH.dataXtest, axis=-1)
 		trainX = np.concatenate(DH.dataXtrain, axis=-1)
+
+		
 		trainY =  DH.dataYtrain
 		y = DH.dataYtest
 		sm = SM()
+		if args.method =='sarimax':
+			try:
+				sm.searchBestOrder(trainX)
+				print('A oredem esta aqui:\n\n\n')
+				print(sm.sOrder)
+				print('\n\n')
+			except:
+				sOrder = (100,0,5,100)
+				print('something worng')
 		works,xRec = sm.runMethod(testMiss,args.method)
 		if not works:
 			print(f'\n\n Erro in folf{fold_i} do metodos {args.method}')

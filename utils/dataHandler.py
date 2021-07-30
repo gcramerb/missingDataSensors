@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 import sys
 import os
 sys.path.insert(0, os.path.realpath('../../../'))
-from .activitiesNames import classesNames
+sys.path.insert(0, os.path.realpath('../utils/'))
+from activitiesNames import classesNames
 
 
 class dataHandler():
