@@ -8,57 +8,66 @@ import json
 import os
 
 
-class absoluteMetrics():
-	def __init__(self):
-		self.a = 'a'
-	
-	
-	def psnr_metric(self,original, compressed):
-	    mse = np.mean((original - compressed) ** 2)
-	    if mse == 0:  # MSE is zero means no noise is present in the signal .
-	                  # Therefore PSNR have no importance.
-	        return 100
-	    max_pixel = 1
-	    psnr = 20 * log10(max_pixel / sqrt(mse))
-	    return psnr
-	def psnr(self,xTrue,xRec):
-		shape = xTrue.shape
+class absoluteMetrics:
+	def __init__(self,xTrue,xRec):
+		x = (xTrue[0, :, 0] - xRec[0, :, 0]) ** 2
+		idx = np.where(x != 0)[0]
+		self.dataOri = np.zeros([len(xTrue),len(idx)])
+		self.dataRec =  np.zeros([len(xTrue),len(idx)])
+		for i in range(xTrue.shape[0]):
+			x = (xTrue[i, :, 0] - xRec[i, :, 0]) ** 2
+			idx = np.where(x != 0)[0]
+			self.dataOri[i,:,:] = xTrue[i,idx,:]
+			self.dataRec[i,:,:] = xRec[i,idx,:]
+
+	def psnr(self):
+		"""
+		Peak signal to noise ratio
+		"""
+		shape = self.dataOri.shape
 		psnr = []
 		psnrMean = []
+		max_pixel = 1
 		for i in range(shape[0]):
 			for j in range(shape[-1]):
-				psnr.append(self.psnr_metric(xTrue[i, :, j], xRec[i, :, j]))
+				mse = np.mean(self.dataOri[i, self.idx[i], j]- self.dataRec[i, self.idx[i], j])
+				
+				if mse == 0:  # MSE is zero means no noise is present in the signal .
+					# Therefore PSNR have no importance.
+					psnr = 20 * log10(0.1)
+				else:
+					psnr = 20 * log10(max_pixel / sqrt(mse))
+				psnr.append(self.psnr_metric())
 			psnrMean.append(np.mean(psnr))
 			psnr = []
 		return np.mean(psnrMean)
-		
 
-	def myMSE(self,xTrue,xRec):
-		#DH = dataHandler()
-		#testRec, testTrue, idxAll = DH.get_reconstructed(dataset_name, miss, imp, si, path, file, fold_i)
-		rmse_list = []
-		# como aplicar vetorizacao nessa parte
-		for i in range(len(xRec)):
-			x = (xTrue[i, :, 0] - xRec[i, :, 0]) ** 2
-			idx = np.where(x != 0)[0]
-			rmse_list.append(MSE(xTrue[i, idx, 0], xRec[i, idx, 0], squared=False))
-			rmse_list.append(MSE(xTrue[i, idx, 1], xRec[i, idx, 1], squared=False))
-			rmse_list.append(MSE(xTrue[i, idx, 2], xRec[i, idx, 2], squared=False))
-		return np.mean(rmse_list)
+	def myMSE(self):
+		mse_list = []
+		for k in range(3):
+			mse = np.square(np.subtract(self.dataOri[:,:,k], self.dataRec[:,:,k])).mean(axis=1)
+			mse_list.append(mse.mean())
+		return np.mean(mse_list)
+
+	def pearson_corr(self):
+		"""
+		correlation between two signals!
+		"""
+		x_corr = np.array([st.pearsonr(x, y)[0] for x, y in zip(self.dataOri[:,:,0],self.dataRec[:,:,0])])
+		y_corr = np.array([st.pearsonr(x, y)[0] for x, y in zip(self.dataOri[:,:,1],self.dataRec[:,:,1])])
+		z_corr = np.array([st.pearsonr(x, y)[0] for x, y in zip(self.dataOri[:,:,2],self.dataRec[:,:,2])])
+		return (x_corr.mean(),y_corr.mean(),z_corr.mean())
 	
-	def pearsonr(self,a,b):
-		return 0
+	def runAll():
+		result = dict()
+		result['MSE'] = self.myMSE()
+		result['PSNR'] = self.psnr()
+		a,b,c = pearson_corr()
+		result['corrX'] = a
+		result['corrY'] = b
+		result['corrZ'] = c
+		return result
 
 
-	def pearson_corr(self,xTrue,xRec):
-		shape = xTrue.shape
-		result = []
-		for i in range(shape[0]):
-		    x = (xTrue[i, :, 0] - xRec[i, :, 0]) ** 2
-		    idx = np.where(x != 0)[0]
-		    x_corr = pearsonr(xTrue[i, idx, 0], xRec[i, idx, 0])
-		    y_corr = pearsonr(xTrue[i, idx, 1], xRec[i, idx, 1])
-		    z_corr = pearsonr(xTrue[i, idx, 2], xRec[i, idx, 2])
-		    result.append([x_corr,y_corr,z_corr])
+
 	
-		return np.mean(result,axis = 0)

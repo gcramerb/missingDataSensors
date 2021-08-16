@@ -6,12 +6,12 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from Autoencoder.convAE_pytorch import ConvAutoencoder
+from Autoencoder.convAE import denoisingAE
 import sys
 import os
 sys.path.insert(0, "../")
 from utils.dataHandler import dataHandler
-from Autoencode.modelUtils.custom_losses import SoftDTW,DCT_Loss,W_MSE
+from Autoencoder.modelUtils.custom_losses import SoftDTW,DCT_Loss,W_MSE
 
 ## getting the data:
 m = '0.5'

@@ -1,36 +1,31 @@
-import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
-
 from support.early_stopping import EarlyStopping
-import numpy as np
 
-import time,os,sys,argparse
+import numpy as np
+import pandas as pd
+import scipy.stats as st
+import time, os, sys, argparse, copy
+import ujson as json
+from math import sqrt
+from sklearn import metrics
+from tslearn.metrics import dtw, dtw_path
+from ipdb import set_trace
+import pickle5 as pickle
+from sklearn.metrics import f1_score, accuracy_score, mean_squared_error
+
 import utils
 import models
 from models import rits_i, brits_i, rits, brits, gru_d, m_rnn
 import data_loader
-import pandas as pd
-import ujson as json
-
-from math import sqrt
-from sklearn import metrics
-from tslearn.metrics import dtw, dtw_path
-
-from ipdb import set_trace
-import pickle5 as pickle
 from dataGeneratorForBRITS import dataGenerator
-from sklearn.metrics import f1_score,accuracy_score,mean_squared_error
-
 
 parser = argparse.ArgumentParser()
-
-
 parser.add_argument('--slurm', action='store_true')
-
+parser.add_argument('--debug', action='store_true')
 parser.add_argument('--epochs', type=int, default=2000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--model', type=str, default='brits')
@@ -38,31 +33,40 @@ parser.add_argument('--hid_size', type=int, default=32)
 parser.add_argument('--impute_weight', type=float, default=0.3)
 parser.add_argument('--label_weight', type=float, default=1.0)
 
-parser.add_argument('--missingRate',type=str,default= '0.5')
-parser.add_argument('--Nfolds',type=int,default= 1)
-parser.add_argument('--inPath',type=str,default= os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'))
-parser.add_argument('--outPath',type=str,default=None)
-parser.add_argument('--dataset',type=str,default="USCHAD.npz")
+parser.add_argument('--missingRate', type=str, default='0.5')
+parser.add_argument('--Nfolds', type=int, default=1)
+parser.add_argument('--inPath', type=str,
+                    default=os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'))
+parser.add_argument('--outPath', type=str, default=None)
+parser.add_argument('--dataset', type=str, default="USCHAD.npz")
 
 args = parser.parse_args()
 
 if args.slurm:
 	import sys
+	
 	sys.path.insert(0, "/home/guilherme.silva/")
 	classifiersPath = os.path.abspath('/mnt/users/guilherme.silva/classifiers/trained/')
-	from missing_data.metrics import absoluteMetrics
+	from missingDataSensors.utils.metrics import absoluteMetrics
 	from classifiers.Catal import Catal
 	
+	args.inPath = os.path.abspath('/storage/datasets/HAR/LOSO/')
+	args.outPath = os.path.abspath('/mnt/users/guilherme.silva/missingDataSensors/results/')
+	if args.debug:
+		import pydevd_pycharm
+		
+		pydevd_pycharm.settrace('172.22.100.2', port=22, stdoutToServer=True, stderrToServer=True, suspend=False)
+	
 	try:
-		with open(os.path.join(classifiersPath, f'Catal_USCHAD_{0}.pkl'),'rb') as inp:
+		with open(os.path.join(classifiersPath, f'Catal_USCHAD_{0}.pkl'), 'rb') as inp:
 			junk = pickle.load(inp)
 	except:
 		print('Classifiers Not working !!!\n')
-	
+
 
 
 else:
-
+	
 	args.outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\USCHAD_forBRITS\\')
 	classifiersPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\trained\\')
 	sys.path.insert(0, 'C:\\Users\\gcram\\Documents\\Github\\')
@@ -70,7 +74,6 @@ else:
 	
 	sys.path.insert(0, 'C:\\Users\\gcram\\Documents\\Smart Sense\\')
 	from classifiers.Catal import Catal
-	
 
 
 def train(model, early_stopping, dataTrain):
@@ -91,8 +94,8 @@ def train(model, early_stopping, dataTrain):
 			run_loss += ret['loss'].item()
 		
 		print('\r Progress epoch {}, {:.2f}%, average loss {}'.format(
-		 	epoch, (idx + 1) * 100.0 / len(data_iter),
-		 	       run_loss / (idx + 1.0)))
+			epoch, (idx + 1) * 100.0 / len(data_iter),
+			       run_loss / (idx + 1.0)))
 		
 		test_data_iter = data_loader.get_test_loader(dataTrain,
 		                                             batch_size=args.batch_size)
@@ -102,7 +105,7 @@ def train(model, early_stopping, dataTrain):
 		early_stopping(valid_loss, model)
 		
 		if early_stopping.early_stop:
-			#print("Early stopping")
+			# print("Early stopping")
 			break
 
 
@@ -220,9 +223,9 @@ def run(dataTrain):
 	train(model, early_stopping, dataTrain)
 
 
-def evaluate_model(dataTest,saved = False,fold = None):
+def evaluate_model(dataTest, saved=False, fold=None):
 	if saved:
-		with open(os.path.join(classifiersPath,f'model_BRITS_fold{fold}.pkl'),'rb') as inp:
+		with open(os.path.join(args.outPath, f'model_BRITS_fold{fold}.pkl'), 'rb') as inp:
 			model = pickle.load(inp)
 	else:
 		model = getattr(models,
@@ -230,7 +233,7 @@ def evaluate_model(dataTest,saved = False,fold = None):
 		                                  args.label_weight)
 	total_params = sum(p.numel() for p in model.parameters()
 	                   if p.requires_grad)
-	#print('Total params is {}'.format(total_params))
+	# print('Total params is {}'.format(total_params))
 	
 	if torch.cuda.is_available():
 		model = model.cuda()
@@ -249,46 +252,67 @@ if __name__ == '__main__':
 	for fold_i in range(args.Nfolds):
 		DG = dataGenerator(missing=args.missingRate)
 		DG.setPath(args.inPath, args.outPath)
-		dataTrain, dataTest,idx_test = DG.myPreprocess(fold=fold_i, save=False)
+		dataTrain, dataTest, idx_test = DG.myPreprocess(fold=fold_i, save=False)
 		fileName = args.dataset.split('.')[0] + '_' + args.missingRate + f'_fold_{fold_i}'
 		
-		run(dataTrain)
+		#run(dataTrain)
 		# evaluate the best model
 		# os.path.join(args.outPath, fileName+'_test')
-		imp, labels = evaluate_model(dataTest)
-		imputed = copy.deepcopy(DG.xTrue)
-		for i,idx in enumerate(idx_test):
-			imputed[i,idx,0] = imp[i,0,idx]
-			imputed[i, idx, 0] = imp[i, 1, idx]
-			imputed[i, idx, 0] = imp[i, 2, idx]
-		name = os.path.join(args.outPath, fileName)
-		
-		# np.savez(name,imputed = imputed,labels = labels)
-
-		with open(
-				os.path.join(classifiersPath, f'Catal_USCHAD_{fold_i}.pkl'),
-				'rb') as inp:
-			catal_classifier = pickle.load(inp)
-		
-		#np.transpose(imputed, (0, 2, 1)
-		yPred = catal_classifier.predict(imputed)
-		mse = AM.myMSE(DG.xTrue, imputed)
-		acc = accuracy_score(np.squeeze(labels),yPred)
-		f1 = f1_score(np.squeeze(labels),yPred, average='macro')
-		metrics.append([mse, acc, f1])
-	
-	metricsM = np.mean(metrics, axis=0)
-	metrics = np.array(metrics)
-	ic_acc = st.t.interval(alpha=0.95, df=len(metrics[:,1]) - 1, loc=np.mean(metrics[:,1]), scale=st.sem(metrics[:,1]))
-	ic_f1 = st.t.interval(alpha=0.95, df=len(metrics[:, 2]) - 1, loc=np.mean(metrics[:, 2]),scale=st.sem(metrics[:,2]))
-	result = {}
-	result['MSE'] = str(metricsM[0])
-	result['Acuracy'] = str(metricsM[1])
-	result['Acc_icLow'] = ic_acc[0]
-	result['Acc_icHigh'] = ic_acc[1]
-	result['f1'] = str(metricsM[2])
-	result['F1_icLow'] = ic_f1[0]
-	result['F1_icHigh'] = ic_f1[1]
-	savePath = os.path.join(args.outPath, f'result_{args.dataset.split(".")[0]}_{args.missingRate}')
-	with open(savePath + '.json', "w") as write_file:
-		json.dump(result, write_file)
+		#imp, labels = evaluate_model(dataTest)
+		print(imp[0,0,:])
+		print('\n\n\n')
+		print(imp[10,0,:])
+		print('\n\n\n')
+		print(imp[50,1,:])
+		print('\n\n\n')
+		print(imp[44,2,:])
+		print('\n\n\n')
+		break
+	# 	imputed = copy.deepcopy(DG.testX)
+	# 	# print('\n\n\n------------------------')
+	# 	# print(imp.shape)
+	# 	# print(imputed.shape)
+	# 	# print(DG.testX.shape)
+	# 	# print('\n----------------------------')
+	#
+	# 	for i, idx in enumerate(idx_test):
+	# 		imputed[i, idx, 0] = imp[i, 0, idx]
+	# 		imputed[i, idx, 1] = imp[i, 1, idx]
+	# 		imputed[i, idx, 2] = imp[i, 2, idx]
+	# 	name = os.path.join(args.outPath, fileName)
+	#
+	# 	# np.savez(name,imputed = imputed,labels = labels)
+	# 	catal_classifier = Catal()
+	# 	catal_classifier.fit(DG.trainX, DG.trainY)
+	# 	yPredTrue = catal_classifier.predict(DG.testX)
+	# 	# np.transpose(imputed, (0, 2, 1)
+	# 	yPred = catal_classifier.predict(imputed)
+	# 	mse = AM.myMSE(DG.testX, imputed)
+	# 	acc = accuracy_score(DG.testY, yPred)
+	# 	accTrue = accuracy_score(DG.testY, yPredTrue)
+	# 	f1 = f1_score(DG.testY, yPred, average='macro')
+	# 	f1True = f1_score(DG.testY, yPredTrue, average='macro')
+	# 	metrics.append([mse, acc, f1, accTrue, f1True])
+	# 	del DG
+	#
+	# metricsM = np.mean(metrics, axis=0)
+	# metrics = np.array(metrics)
+	# ic_acc = st.t.interval(alpha=0.95, df=len(metrics[:, 1]) - 1, loc=np.mean(metrics[:, 1]),
+	#                        scale=st.sem(metrics[:, 1]))
+	# ic_f1 = st.t.interval(alpha=0.95, df=len(metrics[:, 2]) - 1, loc=np.mean(metrics[:, 2]),
+	#                       scale=st.sem(metrics[:, 2]))
+	# result = {}
+	# result['MSE'] = str(metricsM[0])
+	# result['Acuracy'] = str(metricsM[1])
+	# result['AccTrue'] = str(metricsM[3])
+	# result['Acc_icLow'] = ic_acc[0]
+	# result['Acc_icHigh'] = ic_acc[1]
+	# result['f1'] = str(metricsM[2])
+	# result['f1True'] = str(metricsM[4])
+	# result['F1_icLow'] = ic_f1[0]
+	# result['F1_icHigh'] = ic_f1[1]
+	# print(result)
+	# name = f'BRITS_{args.dataset.split(".")[0]}_{args.missingRate}' + '.json'
+	# savePath = os.path.join(args.outPath, name)
+	# with open(savePath, "w") as write_file:
+	# 	json.dump(result, write_file)

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import pickle
 
 
 # define the NN architecture
@@ -66,14 +67,17 @@ class ConvAutoencoder(nn.Module):
 		decoded = self.decoded(d4)
 		return decoded
 
-class pytorchModel:
-	def __init__(self, hyp=None):
-		torch.manual_seed(22770)
+class denoisingAE:
+
+	def buildModel(self,hyp):
 		use_cuda = torch.cuda.is_available()
 		device = torch.device("cuda" if use_cuda else "cpu")
-		# initialize the NN
-		self.model = ConvAutoencoder().to(device)
+		self.model = ConvAutoencoder(hyp).to(device)
 		
+	def loadModel(self,filePath):
+		with open(filePath,'rb') as m:
+			self.model = pickle.load(m)
+
 	def train(self,n_epoch,trainloader,optimizer):
 		scheduler = StepLR(optimizer, step_size=30, gamma=0.4)
 		for epoch in range(1, n_epochs + 1):
@@ -108,7 +112,10 @@ class pytorchModel:
 			train_loss = train_loss / len(trainloader)
 			histTrainLoss.append(train_loss)
 		return histTrainLoss
-			
+	def save(self,savePath):
+		with open(savePath,'w') as s:
+			pickle.dump(self.model,s, protocol=pickle.HIGHEST_PROTOCOL)
+
 	def predict(self,testloader):
 		first = True
 		y_all = []

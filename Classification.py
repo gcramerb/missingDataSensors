@@ -2,9 +2,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 import scipy.stats as st
-import os
-import sys
-import json
+import os, sys,json
 from dataHandler import dataHandler
 import pickle
 
