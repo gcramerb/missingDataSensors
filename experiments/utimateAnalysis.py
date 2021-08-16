@@ -28,6 +28,8 @@ args = parser.parse_args()
 
 if args.slurm:
 	sys.path.insert(0, "/home/guilherme.silva/missingDataSensors")
+	args.inPath = '/storage/datasets/sensors/LOSO/'
+	args.outPath = os.path.abspath("/home/guilherme.silva/missingDataSensors/results/")
 	from utils.dataHandler import dataHandler
 	from utils.metrics import absoluteMetrics
 	from baselines.timeSeriesReconstruction import StandardMethods as SM
@@ -40,7 +42,6 @@ if args.slurm:
 else:
 	args.inPath = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
 	args.outPath = "C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\"
-	
 	sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\missingDataSensors\\")
 	from utils.dataHandler import dataHandler
 	from utils.metrics import absoluteMetrics

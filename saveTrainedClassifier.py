@@ -1,9 +1,6 @@
 import numpy as np
 import json,os,sys
-
-
-sys.path.insert(0, "/")
-from dataHandler import dataHandler
+import argparse
 sys.path.insert(0, "/")
 from utils.dataHandler import dataHandler
 
@@ -13,10 +10,9 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--inPath', type=str, default=None)
 parser.add_argument('--outPath', type=str, default=None)
-parser.add_argument('--dataset', type=str, default="USCHAD.npz")
+parser.add_argument('--dataset', type=str, default="USCHAD")
 args = parser.parse_args()
 if args.slurm:
-
 	args.inPath  = '/storage/datasets/sensors/LOSO/'
 	classifiersPath = os.path.abspath("/home/guilherme.silva/classifiers/")
 	if args.debug:
@@ -39,13 +35,18 @@ def trainSaveClassifiers():
 	y = tmp['y']
 	folds = tmp['folds']
 	n_class = y.shape[1]
-	y = np.argmax(y, axis=1)
+	#y = np.argmax(y, axis=1)
 	for i in range(0, len(folds)):
 		train_idx = folds[i][0]
 		test_idx = folds[i][1]
-		Xtrain = X[train_idx]
 		model = classifier()
-		model.fit(Xtrain, y[train_idx])
+		model.fit(X[train_idx], y[train_idx])
 		with open(os.path.join(args.outPath, f'DCNN_acc_{args.dataset}_fold_{i}.pkl'), 'wb') as output:
 			pickle.dump(model, output, pickle.HIGHEST_PROTOCOL)
+		yTrue= np.argmax(y[test_idx], axis=1)
+		acc,rec,f1 = model.metrics(X[test_idx], yTrue)
+		print('\n',acc,' ',f1,'\n')
 		del model
+
+if __name__ == '__main__':
+	trainSaveClassifiers()

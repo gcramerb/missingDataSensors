@@ -10,14 +10,9 @@ import custom_model as cm
 import missing_creator as mc
 import imput_creator as ic
 
-
 import keras
 from keras import backend as K
 from keras.models import load_model
-
-
-
-
 
 if __name__ == '__main__':
     np.random.seed(12227)

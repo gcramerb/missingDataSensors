@@ -3,11 +3,40 @@ from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 import scipy.stats as st
 import os, sys,json
+
+
 from dataHandler import dataHandler
 import pickle
 
-sys.path.insert(0, "C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\")
-from Catal import Catal
+parser = argparse.ArgumentParser()
+parser.add_argument('--slurm', action='store_true')
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('--inPath', type=str, default=None)
+parser.add_argument('--outPath', type=str, default=None)
+parser.add_argument('--missingRate', type=str, default='0.2')
+parser.add_argument('--Nfolds', type=int, default=14)
+parser.add_argument('--dataset', type=str, default="USCHAD.npz")
+args = parser.parse_args()
+
+if args.slurm:
+	sys.path.insert(0, "/home/guilherme.silva/missingDataSensors")
+	from utils.dataHandler import dataHandler
+	from utils.metrics import absoluteMetrics
+	from baselines.timeSeriesReconstruction import StandardMethods as SM
+	
+	classifiersPath = os.path.abspath("/home/guilherme.silva/classifiers/trained/")
+	
+	if args.debug:
+		import pydevd_pycharm
+		
+		pydevd_pycharm.settrace('172.22.100.3', port=22, stdoutToServer=True, stderrToServer=True, suspend=False)
+
+else:
+	args.inPath = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
+	args.outPath = "C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\"
+
+	from utils.dataHandler import dataHandler
+	classifiersPath = os.path.abspath("C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\trained\\")
 
 
 def trainSaveClassifiers(datasetName, inPath, outPath):
