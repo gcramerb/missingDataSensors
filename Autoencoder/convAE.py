@@ -1,7 +1,19 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import pickle
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+from torch.optim.lr_scheduler import StepLR
+import sys, pickle
+import numpy as np
+from copy import deepcopy
+
+sys.path.insert(0, "../Autoencoder/")
+from modelUtils.custom_losses import SoftDTW
+from modelUtils.custom_losses import My_dct_Loss as DCT_loss
+
+
 
 
 # define the NN architecture
@@ -67,37 +79,39 @@ class ConvAutoencoder(nn.Module):
 		decoded = self.decoded(d4)
 		return decoded
 
-class denoisingAE:
-
-	def buildModel(self,hyp):
+class denoisingAEy:
+	def __init__(self,bs=16):
+		self.bs = bs
+	def buildModel(self,hyp = None):
 		use_cuda = torch.cuda.is_available()
-		device = torch.device("cuda" if use_cuda else "cpu")
-		self.model = ConvAutoencoder(hyp).to(device)
-		
-	def loadModel(self,filePath):
-		with open(filePath,'rb') as m:
-			self.model = pickle.load(m)
+		self.device = torch.device("cuda" if use_cuda else "cpu")
+		self.model = ConvAutoencoder(hyp).to(self.device)
 
-	def train(self,n_epoch,trainloader,optimizer):
+	def train(self,xTrain,n_epochs = 70):
+		trainloader = DataLoader(xTrain, shuffle=True, batch_size=self.bs)
+		optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
 		scheduler = StepLR(optimizer, step_size=30, gamma=0.4)
+		#criterion = SoftDTW(use_cuda, gamma=0.01)
+		criterion = nn.MSELoss()
+		# specify loss function
+		histTrainLoss = []
+		# number of epochs to train the model
 		for epoch in range(1, n_epochs + 1):
 			# monitor training loss
 			train_loss = 0.0
-			for i, (dataIn, dataOut, idx) in enumerate(trainloader):
+			for i, (dataIn, dataOut) in enumerate(trainloader):
 				sensor_dataRec = []
 				for In in dataIn:
-					sensor_dataRec.append(In.to(device=device, dtype=torch.float))
-				sensor_data = dataOut.to(device=device, dtype=torch.float)
+					sensor_dataRec.append(In.to(device=self.device, dtype=torch.float))
+				sensor_data = dataOut.to(device=self.device, dtype=torch.float)
 				# clear the gradients of all optimized variables
 				optimizer.zero_grad()
 				# forward pass: compute predicted outputs by passing inputs to the model
 				outputs = self.model(sensor_dataRec)
 				# calculate the loss
 				# loss = criterion(outputs[:,0,:,:], sensor_data[:,0,:,:])
-				# loss = criterion(outputs, sensor_data)
-				a = np.squeeze(outputs)
-				b = np.squeeze(sensor_data)
-				loss = criterion(a, b)
+				loss = criterion(outputs, sensor_data)
+				loss = criterion(np.squeeze(outputs), np.squeeze(sensor_data))
 				
 				# backward pass: compute gradient of the loss with respect to model parameters
 				loss.mean().backward()
@@ -112,35 +126,52 @@ class denoisingAE:
 			train_loss = train_loss / len(trainloader)
 			histTrainLoss.append(train_loss)
 		return histTrainLoss
+	
 	def save(self,savePath):
 		with open(savePath,'w') as s:
 			pickle.dump(self.model,s, protocol=pickle.HIGHEST_PROTOCOL)
+	
+	def loadModel(self, filePath):
+		with open(filePath, 'rb') as m:
+			self.model = pickle.load(m)
 
-	def predict(self,testloader):
+	def predict(self,xTest):
+		testloader =  DataLoader(xTest, shuffle=False, batch_size=1)
 		first = True
 		y_all = []
 		with torch.no_grad():
-			for i, (dataInTest, dataOutTest, label, idx) in enumerate(testloader):
+			for i, (dataInTest, dataOutTest, label) in enumerate(testloader):
 				label_i = label
 				y = label_i.cpu().data.numpy()[0]
 				testRec = []
 				for InTest in dataInTest:
-					testRec.append(InTest.to(device=device, dtype=torch.float))
-				testGT = dataOutTest.to(device=device, dtype=torch.float)
+					testRec.append(InTest.to(device=self.device, dtype=torch.float))
+				testGT = dataOutTest.to(device=self.device, dtype=torch.float)
 				pred = self.model(testRec)
 				# pred, testRec, testGT = pred.cpu().data.numpy()[0][0], testRec.cpu().data.numpy()[0][0],testGT.cpu().data.numpy()[0][0]
 				pred, testGT, testRec = pred.cpu().data.numpy()[0], testGT.cpu().data.numpy()[0], \
 				                        testRec[0].cpu().data.numpy()[0]
 
+				x = (testGT[0,:,0] - testRec[0,:,0]) ** 2
+				idx = np.where(x != 0)[0]
+				# TODO : alterar isso pois nao eh generico para qualquer dataset
+				if len(idx) % 2 != 0:
+					idx.append(idx[-1] + 1)
+				pred_ = deepcopy(testGT)
+				pred_[0,idx,:] = pred[0,idx,:]
 				if first:
-					pred_all = pred
+					pred_all = pred_
 					testGT_all = testGT
 					testRec_all = testRec
 					y_all.append(y)
 					first = False
 				else:
-					pred_all = np.concatenate([pred_all, pred], axis=0)
+					pred_all = np.concatenate([pred_all, pred_], axis=0)
 					testGT_all = np.concatenate([testGT_all, testGT], axis=0)
 					testRec_all = np.concatenate([testRec_all, testRec], axis=0)
 					y_all.append(y)
-			return pred, testGT, testRec,y_all
+			# pred_all = recontrucao do AE
+			# testGT_all = dado original
+			# testRec = dado reconstruido com media
+			# y_all = Labels
+			return pred_all, testGT_all, testRec_all,y_all

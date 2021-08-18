@@ -1,6 +1,6 @@
 import numpy as np
 import json,os,sys
-import argparse
+import argparse,pickle
 sys.path.insert(0, "/")
 from utils.dataHandler import dataHandler
 
@@ -32,6 +32,7 @@ def trainSaveClassifiers():
 	tmp = np.load(os.path.join(args.inPath, f'{args.dataset}.npz'), allow_pickle=True)
 	X = tmp['X']
 	X = X[:, :, :, 0:3]
+	X = np.transpose(X,(0,2,3,1))
 	y = tmp['y']
 	folds = tmp['folds']
 	n_class = y.shape[1]
@@ -39,14 +40,14 @@ def trainSaveClassifiers():
 	for i in range(0, len(folds)):
 		train_idx = folds[i][0]
 		test_idx = folds[i][1]
-		model = classifier()
-		model.fit(X[train_idx], y[train_idx])
-		with open(os.path.join(args.outPath, f'DCNN_acc_{args.dataset}_fold_{i}.pkl'), 'wb') as output:
-			pickle.dump(model, output, pickle.HIGHEST_PROTOCOL)
+		clf = classifier()
+		clf.fit(X[train_idx], y[train_idx])
+		saveFile = os.path.join(args.outPath, f'DCNN_acc_{args.dataset}_fold_{i}.h5')
+		clf.save(saveFile)
 		yTrue= np.argmax(y[test_idx], axis=1)
-		acc,rec,f1 = model.metrics(X[test_idx], yTrue)
-		print('\n',acc,' ',f1,'\n')
-		del model
+		acc,rec,f1 = clf.metrics(X[test_idx], yTrue)
+		print('\n\n\n',acc,' ',f1,'\n\n\n')
+		del clf
 
 if __name__ == '__main__':
 	trainSaveClassifiers()

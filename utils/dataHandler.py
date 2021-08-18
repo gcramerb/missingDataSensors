@@ -1,21 +1,15 @@
 import pandas as pd
 import numpy as np
-import random
+import sys, os,random
 from scipy import fftpack
 from sklearn.preprocessing import MinMaxScaler
 from copy import deepcopy
 from sklearn.metrics import mean_squared_error
-#from sklearn.metrics import mean_absolute_percentage_error
 from math import log10, sqrt
 from numpy.random import seed
 from numpy.random import rand
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
-import sys
-import os
-sys.path.insert(0, os.path.realpath('../../../'))
-sys.path.insert(0, os.path.realpath('../utils/'))
+sys.path.insert(0, "../utils/")
+from activitiesNames import classesNames
 
 
 class dataHandler():
@@ -227,7 +221,7 @@ class dataHandler():
 			if s[i] == '1':
 				if missing_type == 'b':
 					block_range = round(dim * float(missing_factor))
-					idx_range_max = dim - 1 - block_range
+					idx_range_max = dim - 2 - block_range
 					idx_missing_all = []
 					self.missing_indices = np.zeros((nSamples, block_range),dtype = np.int16)
 					for j in range(0,nSamples):
@@ -403,9 +397,8 @@ class dataHandler():
 			return train, trainRec, testRec
 	
 	def get_data_pytorch(self,index = False):
-		train, trainRec, testRec, all_index = self.get_data_keras(index)
-
 		if index:
+			train, trainRec, testRec, all_index = self.get_data_keras(True)
 			train_data = []
 			for i in range(len(train[0])):
 				train_data.append([[xr[i] for xr in trainRec], train[0][i],all_index['train'][i]] )
@@ -416,6 +409,7 @@ class dataHandler():
 					[[x[i] for x in testRec], np.expand_dims(self.dataXtest[0][i], axis=0), self.dataYtest[i],all_index['test'][i]])
 			return train_data, test_data
 		else:
+			train, trainRec, testRec = self.get_data_keras(False)
 			train_data = []
 			for i in range(len(train[0])):
 				train_data.append([[xr[i] for xr in trainRec], train[0][i]])
@@ -446,10 +440,3 @@ class dataHandler():
 			y_true = data['classes']
 			idxAll = None
 		return testRec, testTrue, idxAll
-	
-"""path = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
-DH = dataHandler()
-DH.load_data(dataset_name='USCHAD.npz', sensor_factor='1.1', path=path)
-DH.apply_missing(missing_factor='0.2', missing_sensor='1.0')
-DH.impute('mean')
-DH.splitTrainTest(fold_i=fold_i)"""

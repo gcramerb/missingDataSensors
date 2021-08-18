@@ -1,47 +1,56 @@
 from sklearn.metrics import mean_squared_error
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
-from Autoencoder.convAE import denoisingAE
-import sys
-import os
+from Autoencoder.convAE import denoisingAEy
+import sys, os, argparse
 sys.path.insert(0, "../")
 from utils.dataHandler import dataHandler
-from Autoencoder.modelUtils.custom_losses import SoftDTW,DCT_Loss,W_MSE
+from utils.metrics import absoluteMetrics
 
-## getting the data:
-m = '0.5'
-DH = dataHandler()
-DH.load_data(dataset_name='USCHAD.npz', sensor_factor='1.1.0')
-DH.apply_missing(missing_factor=m, missing_sensor='1.0')
-DH.impute('mean')
-DH.splitTrainTest()
-#train, trainRec, testRec = DH.get_data_keras()
-#train_data, test_data = DH.get_data_pytorch()
-train_data ,test_data = DH.get_data_pytorch(index=True)
-trainloader = DataLoader(train_data, shuffle=True, batch_size=16)
-testloader = DataLoader(test_data, shuffle=False, batch_size=1)
+parser = argparse.ArgumentParser()
+parser.add_argument('--slurm', action='store_true')
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('--inPath', type=str, default=None)
+parser.add_argument('--outPath', type=str, default=None)
+parser.add_argument('--missingRate', type=str, default='0.2')
+parser.add_argument('--Nfolds', type=int, default=14)
+parser.add_argument('--dataset', type=str, default="USCHAD.npz")
+args = parser.parse_args()
+if args.slurm:
+	args.inPath = '/storage/datasets/sensors/LOSO/'
+	args.outPath = os.path.abspath("/home/guilherme.silva/missingDataSensors/results/")
+	classifiersPath = os.path.abspath("/home/guilherme.silva/classifiers/trained/")
 
-criterion = SoftDTW(use_cuda,gamma=0.01)
+	if args.debug:
+		import pydevd_pycharm
+		pydevd_pycharm.settrace('172.22.100.3', port=22, stdoutToServer=True, stderrToServer=True, suspend=False)
 
-# specify loss function
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-# number of epochs to train the model
-n_epochs = 70
+else:
+	args.inPath = 'C:\\Users\\gcram\\Documents\\Smart Sense\\Datasets\\LOSO\\'
+	args.outPath = "C:\\Users\\gcram\\Documents\\GitHub\\missingDataSensors\\results\\"
+	classifiersPath = os.path.abspath("C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\trained\\")
 
-myModel = pytorchModel()
-myModel.train(n_epoch,trainloader,optimizer)
+if __name__ == '__main__':
+	metricsAEy = []
+	n_epoch = 1
+	for fold_i in range(args.Nfolds):
+		DH = dataHandler()
+		DH.load_data(dataset_name=args.dataset, sensor_factor='1.1.0')
+		DH.apply_missing(missing_factor=args.missingRate, missing_sensor='1.0')
+		DH.impute('mean')
+		DH.splitTrainTest(fold_i)
+		# train_data ,test_data = DH.get_data_pytorch(index=True)
+		train_data, test_data = DH.get_data_pytorch()
+		myModel = denoisingAEy()
+		myModel.buildModel()
+		hist = myModel.train(train_data,n_epoch)
+		recAEy, GT, recMean, labels = myModel.predict(test_data)
+		del DH
+		recMean = np.stack(recMean)
+		am = absoluteMetrics(GT[:,:,0:3],recAEy[:,:,0:3])
+		res = am.runAll()
+		metricsAEy.append(res)
+	metrics = absoluteMetrics.summarizeMetric(metricsAEy)
+	savePath = os.path.join(args.outPath, f'result_AEy_{args.dataset.split(".")[0]}_{args.missingRate}')
+	with open(savePath + '.json', "w") as write_file:
+		json.dump(metrics, write_file)
 
-tag = f'expUSCHAD_{j}'
-path = '../../resultadosPytorch/wmse/'
-dirname = os.path.dirname(__file__)
-filename = os.path.join(dirname, path)
-pred, testGT, testRec,y_all = myModel.predict(testloader)
-
-#metrics = eval_result(pred_all,testGT_all)
-#json.dump()
-#print(metrics)
