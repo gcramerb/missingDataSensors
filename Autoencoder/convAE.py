@@ -13,9 +13,6 @@ sys.path.insert(0, "../Autoencoder/")
 from modelUtils.custom_losses import SoftDTW
 from modelUtils.custom_losses import My_dct_Loss as DCT_loss
 
-
-
-
 # define the NN architecture
 class ConvAutoencoder(nn.Module):
 	def __init__(self,hyp = None):
@@ -99,7 +96,7 @@ class denoisingAEy:
 		for epoch in range(1, n_epochs + 1):
 			# monitor training loss
 			train_loss = 0.0
-			for i, (dataIn, dataOut) in enumerate(trainloader):
+			for i, (dataIn, dataOut,idxTrain) in enumerate(trainloader):
 				sensor_dataRec = []
 				for In in dataIn:
 					sensor_dataRec.append(In.to(device=self.device, dtype=torch.float))
@@ -139,9 +136,9 @@ class denoisingAEy:
 		testloader =  DataLoader(xTest, shuffle=False, batch_size=1)
 		first = True
 		y_all = []
+		idx_allTest = []
 		with torch.no_grad():
-			for i, (dataInTest, dataOutTest, label) in enumerate(testloader):
-				label_i = label
+			for i, (dataInTest, dataOutTest, label_i,idxTest) in enumerate(testloader):
 				y = label_i.cpu().data.numpy()[0]
 				testRec = []
 				for InTest in dataInTest:
@@ -152,26 +149,25 @@ class denoisingAEy:
 				pred, testGT, testRec = pred.cpu().data.numpy()[0], testGT.cpu().data.numpy()[0], \
 				                        testRec[0].cpu().data.numpy()[0]
 
-				x = (testGT[0,:,0] - testRec[0,:,0]) ** 2
-				idx = np.where(x != 0)[0]
-				# TODO : alterar isso pois nao eh generico para qualquer dataset
-				if len(idx) % 2 != 0:
-					idx.append(idx[-1] + 1)
+
 				pred_ = deepcopy(testGT)
+				idx = idxTest.cpu().data.numpy()[0]
 				pred_[0,idx,:] = pred[0,idx,:]
 				if first:
 					pred_all = pred_
 					testGT_all = testGT
 					testRec_all = testRec
 					y_all.append(y)
+					idx_allTest.append(idx)
 					first = False
 				else:
 					pred_all = np.concatenate([pred_all, pred_], axis=0)
 					testGT_all = np.concatenate([testGT_all, testGT], axis=0)
 					testRec_all = np.concatenate([testRec_all, testRec], axis=0)
 					y_all.append(y)
+					idx_allTest.append(idx)
 			# pred_all = recontrucao do AE
 			# testGT_all = dado original
 			# testRec = dado reconstruido com media
 			# y_all = Labels
-			return pred_all, testGT_all, testRec_all,y_all
+			return pred_all, testGT_all, testRec_all,y_all, idx_allTest

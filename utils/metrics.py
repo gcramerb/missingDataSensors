@@ -1,30 +1,18 @@
 import numpy as np
+import pandas as pd
+import scipy.stats as st
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 from sklearn.metrics import mean_squared_error as MSE
-import scipy.stats as st
-import sys
-import pandas as pd
+import sys, os
 import json
-import os
-import abc
-
-
+from math import log10,sqrt
 class absoluteMetrics:
-	def __init__(self,xTrue,xRec):
-		x = (xTrue[0, :, 0] - xRec[0, :, 0]) ** 2
-		idx = np.where(x != 0)[0]
-		#TODO : alterar isso pois nao eh generico para qualquer dataset
-		if len(idx)%2 != 0:
-			idx.append(idx[-1]+1)
-		self.dataOri = np.zeros([len(xTrue),len(idx),3])
-		self.dataRec =  np.zeros([len(xTrue),len(idx),3])
+	def __init__(self,xTrue,xRec,idx):
+		self.dataOri = np.zeros([idx.shape[0],idx.shape[1],3])
+		self.dataRec =  np.zeros([idx.shape[0],idx.shape[1],3])
 		for i in range(xTrue.shape[0]):
-			x = (xTrue[i, :, 0] - xRec[i, :, 0]) ** 2
-			idx = np.where(x != 0)[0]
-			if len(idx) % 0 != 0:
-				idx.append(idx[-1]+1)
-			self.dataOri[i,:,:] = xTrue[i,idx,:]
-			self.dataRec[i,:,:] = xRec[i,idx,:]
+			self.dataOri[i,:,:] = xTrue[i,idx[i],:]
+			self.dataRec[i,:,:] = xRec[i,idx[i],:]
 
 	def psnr(self):
 		"""
@@ -36,14 +24,14 @@ class absoluteMetrics:
 		max_pixel = 1
 		for i in range(shape[0]):
 			for j in range(shape[-1]):
-				mse = np.mean(self.dataOri[i, self.idx[i], j]- self.dataRec[i, self.idx[i], j])
+				mse = np.mean(self.dataOri[i,:, j]- self.dataRec[i,:, j])**2
 				
 				if mse == 0:  # MSE is zero means no noise is present in the signal .
 					# Therefore PSNR have no importance.
-					psnr = 20 * log10(0.1)
+					psnr_v = 20 * log10(0.1)
 				else:
-					psnr = 20 * log10(max_pixel / sqrt(mse))
-				psnr.append(self.psnr_metric())
+					psnr_v = 20 * log10(max_pixel / sqrt(mse))
+				psnr.append(psnr_v)
 			psnrMean.append(np.mean(psnr))
 			psnr = []
 		return np.mean(psnrMean)

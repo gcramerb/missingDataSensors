@@ -1,10 +1,11 @@
 from sklearn.metrics import mean_squared_error
 import numpy as np
-from Autoencoder.convAE import denoisingAEy
-import sys, os, argparse
-sys.path.insert(0, "../")
-from utils.dataHandler import dataHandler
-from utils.metrics import absoluteMetrics
+import sys, os, argparse, json
+sys.path.insert(0, "../Autoencoder/")
+from convAE import denoisingAEy
+sys.path.insert(0, "../utils/")
+from dataHandler import dataHandler
+from metrics import absoluteMetrics
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--slurm', action='store_true')
@@ -34,19 +35,19 @@ if __name__ == '__main__':
 	n_epoch = 1
 	for fold_i in range(args.Nfolds):
 		DH = dataHandler()
-		DH.load_data(dataset_name=args.dataset, sensor_factor='1.1.0')
+		DH.load_data(dataset_name=args.dataset,path = args.inPath, sensor_factor='1.1.0')
 		DH.apply_missing(missing_factor=args.missingRate, missing_sensor='1.0')
 		DH.impute('mean')
 		DH.splitTrainTest(fold_i)
-		# train_data ,test_data = DH.get_data_pytorch(index=True)
-		train_data, test_data = DH.get_data_pytorch()
+		train_data ,test_data = DH.get_data_pytorch(index=True)
+		#train_data, test_data = DH.get_data_pytorch()
 		myModel = denoisingAEy()
 		myModel.buildModel()
 		hist = myModel.train(train_data,n_epoch)
-		recAEy, GT, recMean, labels = myModel.predict(test_data)
-		del DH
+		recAEy, GT, recMean, labels,idxMissTest = myModel.predict(test_data)
 		recMean = np.stack(recMean)
-		am = absoluteMetrics(GT[:,:,0:3],recAEy[:,:,0:3])
+		am = absoluteMetrics(GT[:,:,0:3],recAEy[:,:,0:3],idxMissTest)
+		del DH
 		res = am.runAll()
 		metricsAEy.append(res)
 	metrics = absoluteMetrics.summarizeMetric(metricsAEy)
