@@ -29,12 +29,12 @@ from DCNNclassifier import DCNNclassifier as classifier
 
 def trainSaveClassifiers():
 	# dataPreparation:
-	tmp = np.load(os.path.join(args.inPath, f'{args.dataset}.npz'), allow_pickle=True)
-	X = tmp['X']
+	with np.load(os.path.join(args.inPath, f'{args.dataset}.npz'), allow_pickle=True) as tmp:
+		X = tmp['X']
+		y = tmp['y']
+		folds = tmp['folds']
 	X = X[:, :, :, 0:3]
-	X = np.transpose(X,(0,2,3,1))
-	y = tmp['y']
-	folds = tmp['folds']
+	X = np.transpose(X, (0, 2, 3, 1))
 	n_class = y.shape[1]
 	#y = np.argmax(y, axis=1)
 	for i in range(0, len(folds)):

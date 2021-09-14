@@ -9,7 +9,7 @@ import seaborn as sn
 import sys
 sys.path.insert(0, "C:\\Users\\gcram\\Documents\\GitHub\\missingDataSensors\\")
 from dataHandler import dataHandler
-from utils import classesNames
+from utils import activitiesNames
 
 #TODO : organizar essa função toda..
 
@@ -178,29 +178,29 @@ def plot_rec_3():
 	label = lab
 	plot_Rec(pred, testRec, testGT, path, label, tag='RecExample_final', imputeType='mean')
 	
-
-miss = '0.3'
-sample = 5100
-data_input_file = 'C:\\Users\gcram\Documents\Smart Sense\Datasets\LOSO\\'
-DH = dataHandler()
-DH.load_data(dataset_name='USCHAD.npz', sensor_factor='1.0', path=data_input_file)
-DH.apply_missing(missing_factor=miss, missing_sensor='1.0')
-
-missingIdx = DH.get_missing_indices()[sample]
-data = pd.DataFrame(DH.dataXmissing[0][sample,:,:],columns = ['eixo x','eixo y','eixo z'])
-aux = np.array([np.nan]*500)
-aux[missingIdx] = DH.dataX[0][sample,missingIdx,0]
-data['Local Dados ausntes x'] = aux
-aux = np.array([np.nan]*500)
-aux[missingIdx] = DH.dataX[0][sample,missingIdx,1]
-data['Local Dados ausntes y'] = aux
-aux = np.array([np.nan]*500)
-aux[missingIdx] = DH.dataX[0][sample,missingIdx,2]
-data['Local Dados ausntes z'] = aux
-
-plot = data.plot(style=['b-', 'r-', 'g-','b:', 'r:', 'g:'], title='Simulação dados Ausentes',xlabel = 'Amostras (timestep)',ylabel = 'Aceleração (g)')
-fig = plot.get_figure()
-fig.savefig('images/missingImputation.png')
+def test():
+	miss = '0.3'
+	sample = 5100
+	data_input_file = 'C:\\Users\gcram\Documents\Smart Sense\Datasets\LOSO\\'
+	DH = dataHandler()
+	DH.load_data(dataset_name='USCHAD.npz', sensor_factor='1.0', path=data_input_file)
+	DH.apply_missing(missing_factor=miss, missing_sensor='1.0')
+	
+	missingIdx = DH.get_missing_indices()[sample]
+	data = pd.DataFrame(DH.dataXmissing[0][sample,:,:],columns = ['eixo x','eixo y','eixo z'])
+	aux = np.array([np.nan]*500)
+	aux[missingIdx] = DH.dataX[0][sample,missingIdx,0]
+	data['Local Dados ausntes x'] = aux
+	aux = np.array([np.nan]*500)
+	aux[missingIdx] = DH.dataX[0][sample,missingIdx,1]
+	data['Local Dados ausntes y'] = aux
+	aux = np.array([np.nan]*500)
+	aux[missingIdx] = DH.dataX[0][sample,missingIdx,2]
+	data['Local Dados ausntes z'] = aux
+	
+	plot = data.plot(style=['b-', 'r-', 'g-','b:', 'r:', 'g:'], title='Simulação dados Ausentes',xlabel = 'Amostras (timestep)',ylabel = 'Aceleração (g)')
+	fig = plot.get_figure()
+	fig.savefig('images/missingImputation.png')
 
 
 #plot_rec_3()
@@ -232,22 +232,14 @@ fig.savefig('images/missingImputation.png')
 # plt.savefig(f'{out_file}.png')
 
 
-def plot_result(self, pred, path, sample=0, tag='teste'):
+def plot_result(true, rec,label, path, tag='teste'):
 	sensors = ['acc', 'gyr', 'mag']
 	axis = [' x', ' y', ' z']
-	true = self.dataXtest[0][sample]
-	rec = self.dataXreconstructedTest[0][sample]
+
+
+	#label = labelsNames[label]
 	
-	s = self.dataYtest[sample]
-	label = self.labelsNames[s]
-	
-	f, axarr = plt.subplots(3, sharex=True, sharey=True)
-	# pyplot.figure()
-	
-	# determine the total number of plots
-	# n, off = imgs_B.shape[2] + 1, 0
-	# sensor = np.squeeze(acc)
-	# plot total TRUE acc
+	f, axarr = plt.subplots(2, sharex=True, sharey=True)
 	axarr[0].plot(true[:, 0], color='green', label='x')
 	axarr[0].plot(true[:, 1], color='blue', label='y')
 	axarr[0].plot(true[:, 2], color='red', label='z')
@@ -257,20 +249,14 @@ def plot_result(self, pred, path, sample=0, tag='teste'):
 	axarr[1].plot(rec[:, 0], color='green', label='x')
 	axarr[1].plot(rec[:, 1], color='blue', label='y')
 	axarr[1].plot(rec[:, 2], color='red', label='z')
-	axarr[1].set_title('ACC ' + self.imputeType)
+	axarr[1].set_title('ACC recontructed')
 	axarr[1].legend()
 	
-	# plot total predction acc
-	axarr[2].plot(pred[:, 0], color='green', label='x')
-	axarr[2].plot(pred[:, 1], color='blue', label='y')
-	axarr[2].plot(pred[:, 2], color='red', label='z')
-	axarr[2].set_title('ACC Autoencoder ')
-	axarr[2].legend()
-	# plt.show()
+	plt.show()
 	
-	# plt.savefig(f"C:\\Users\gcram\Documents\Github\TCC\ + folder + '\' {label_file_name}.png")
-	file_name = path + f'/{label}_{tag}.png'
-	plt.savefig(file_name)
+	# plt.savefig(f"C:\\Users\gcram\Documents\Github\ + folder + '\' {label_file_name}.png")
+	# file_name = path + f'/{label}_{tag}.png'
+	# plt.savefig(file_name)
 	# plt.savefig("../folder/%s_%s.png" % (label, file_name))
 	
 	plt.close()

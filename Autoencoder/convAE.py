@@ -136,7 +136,7 @@ class denoisingAEy:
 		testloader =  DataLoader(xTest, shuffle=False, batch_size=1)
 		first = True
 		y_all = []
-		idx_allTest = []
+		
 		with torch.no_grad():
 			for i, (dataInTest, dataOutTest, label_i,idxTest) in enumerate(testloader):
 				y = label_i.cpu().data.numpy()[0]
@@ -151,23 +151,32 @@ class denoisingAEy:
 
 
 				pred_ = deepcopy(testGT)
-				idx = idxTest.cpu().data.numpy()[0]
+				idx = idxTest.cpu().data.numpy()[0].astype('int')
+
 				pred_[0,idx,:] = pred[0,idx,:]
 				if first:
 					pred_all = pred_
 					testGT_all = testGT
 					testRec_all = testRec
 					y_all.append(y)
-					idx_allTest.append(idx)
+					idx_allTest = np.zeros([1,len(idx)],dtype = 'int')
+					idx_allTest[0] = idx
 					first = False
+					print('\n\n')
+					print(idx.shape)
+					print('\n\n')
 				else:
 					pred_all = np.concatenate([pred_all, pred_], axis=0)
 					testGT_all = np.concatenate([testGT_all, testGT], axis=0)
 					testRec_all = np.concatenate([testRec_all, testRec], axis=0)
 					y_all.append(y)
-					idx_allTest.append(idx)
+					idx_allTest = np.concatenate([idx_allTest, np.expand_dims(idx,axis=0)], axis=0)
 			# pred_all = recontrucao do AE
 			# testGT_all = dado original
 			# testRec = dado reconstruido com media
 			# y_all = Labels
+			# print('\n\n')
+			# print(idx_allTest.shape)
+			# print('\n\n')
+			# print(idx_allTest[0,:])
 			return pred_all, testGT_all, testRec_all,y_all, idx_allTest

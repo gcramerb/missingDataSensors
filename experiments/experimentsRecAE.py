@@ -18,7 +18,8 @@ parser.add_argument('--dataset', type=str, default="USCHAD.npz")
 args = parser.parse_args()
 if args.slurm:
 	args.inPath = '/storage/datasets/sensors/LOSO/'
-	args.outPath = os.path.abspath("/home/guilherme.silva/missingDataSensors/results/")
+	#args.outPath = os.path.abspath("/home/guilherme.silva/missingDataSensors/results/")
+	args.outPath = os.path.abspath("/storage/datasets/HAR/Reconstructed/")
 	classifiersPath = os.path.abspath("/home/guilherme.silva/classifiers/trained/")
 
 	if args.debug:
@@ -45,13 +46,18 @@ if __name__ == '__main__':
 		myModel.buildModel()
 		hist = myModel.train(train_data,n_epoch)
 		recAEy, GT, recMean, labels,idxMissTest = myModel.predict(test_data)
-		recMean = np.stack(recMean)
-		am = absoluteMetrics(GT[:,:,0:3],recAEy[:,:,0:3],idxMissTest)
-		del DH
-		res = am.runAll()
-		metricsAEy.append(res)
-	metrics = absoluteMetrics.summarizeMetric(metricsAEy)
-	savePath = os.path.join(args.outPath, f'result_AEy_{args.dataset.split(".")[0]}_{args.missingRate}')
-	with open(savePath + '.json', "w") as write_file:
-		json.dump(metrics, write_file)
+		
+		saveRec = os.path.join(args.outPath,f'USCHADrec_{fold_i}_miss{args.missingRate}.npz')
+		np.savez(saveRec,X =recAEy,y = labels)
+
+		#recMean = np.stack(recMean)
+		#am = absoluteMetrics(GT[:,:,0:3],recAEy[:,:,0:3],idxMissTest)
+		
+	# 	del DH
+	# 	res = am.runAll()
+	# 	metricsAEy.append(res)
+	# metrics = absoluteMetrics.summarizeMetric(metricsAEy)
+	# savePath = os.path.join(args.outPath, f'result_AEy_{args.dataset.split(".")[0]}_{args.missingRate}')
+	# with open(savePath + '.json', "w") as write_file:
+	# 	json.dump(metrics, write_file)
 

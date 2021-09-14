@@ -91,5 +91,5 @@ for batch in batch_list:
 					sample = DH.dataYtest.index(atv)
 					pred = x_hat[sample,0,:,:]
 					#name = f'TesteComMissing_{sample}'
-					DH.plot_result(pred,filename,sample)
+					DH.plot_result(filename, sample)
 			saveAll(filename, result_list, config, curva_list)
