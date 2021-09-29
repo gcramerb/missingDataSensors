@@ -7,7 +7,14 @@ import sys, os
 import json
 from math import log10,sqrt
 class absoluteMetrics:
-	def __init__(self,xTrue,xRec,idx):
+	def __init__(self,xTrue,xRec,idx=None):
+		if idx is None:
+			idx = []
+			for i in range(xTrue.shape[0]):
+				diff = (xRec[i,:,0] - xTrue[i,:,0])**2
+				aux = np.where(diff != .0)[0]
+				idx.append(np.array(list(range(aux[0],aux[-1]+1))))
+			idx = np.array(idx)
 		self.dataOri = np.zeros([idx.shape[0],idx.shape[1],3])
 		self.dataRec =  np.zeros([idx.shape[0],idx.shape[1],3])
 		for i in range(xTrue.shape[0]):

@@ -269,14 +269,15 @@ class dataHandler():
 		self.imputeType = impute_type
 		if  impute_type == 'mean':
 			for i in range(nSamples):
-				for sensor in self.dataXreconstructed:
-					idx_missing = np.argwhere(np.isnan(sensor[i,:,0])) #All axis has the same missing points
+				for j in range(len(self.dataXreconstructed)):
+					
+					idx_missing = np.argwhere(np.isnan(self.dataXreconstructed[j][i,:,0])) #All axis has the same missing points
 					idx_missing = idx_missing.flatten()
 					idx_notM = list(set(range(dim)) - set(idx_missing))
-					defautMeanX = np.mean(sensor[i, idx_notM, 0])
-					defautMeanY = np.mean(sensor[i, idx_notM, 1])
-					defautMeanZ = np.mean(sensor[i, idx_notM, 2])
-					sensor[i,idx_missing,0:3] = [defautMeanX,defautMeanY,defautMeanZ]
+					defautMeanX = np.mean(self.dataXreconstructed[j][i, idx_notM, 0])
+					defautMeanY = np.mean(self.dataXreconstructed[j][i, idx_notM, 1])
+					defautMeanZ = np.mean(self.dataXreconstructed[j][i, idx_notM, 2])
+					self.dataXreconstructed[j][i,idx_missing,0:3] = [defautMeanX,defautMeanY,defautMeanZ]
 					#defautMeanX = np.mean(data_missing[i, idx_notM])
 					#data_missing[i, idx_missing] = defautMeanX
 		if  impute_type == 'RWmean':
@@ -396,27 +397,27 @@ class dataHandler():
 		else:
 			return train, trainRec, testRec
 	
-	def get_data_pytorch(self,index = False):
+	def get_data_pytorch(self,index = False,sensor_idx = 0):
 		if index:
 			train, trainRec, testRec, all_index = self.get_data_keras(True)
 			train_data = []
-			for i in range(len(train[0])):
-				train_data.append([[xr[i] for xr in trainRec], train[0][i],all_index['train'][i]] )
+			for i in range(len(train[sensor_idx])):
+				train_data.append([[xr[i] for xr in trainRec], train[sensor_idx][i],all_index['train'][i]] )
 			
 			test_data = []
 			for i in range(len(testRec[0])):
 				test_data.append(
-					[[x[i] for x in testRec], np.expand_dims(self.dataXtest[0][i], axis=0), self.dataYtest[i],all_index['test'][i]])
+					[[x[i] for x in testRec], np.expand_dims(self.dataXtest[sensor_idx][i], axis=0), self.dataYtest[i],all_index['test'][i]])
 			return train_data, test_data
 		else:
 			train, trainRec, testRec = self.get_data_keras(False)
 			train_data = []
-			for i in range(len(train[0])):
-				train_data.append([[xr[i] for xr in trainRec], train[0][i]])
+			for i in range(len(train[sensor_idx])):
+				train_data.append([[xr[i] for xr in trainRec], train[sensor_idx][i]])
 			test_data = []
-			for i in range(len(testRec[0])):
+			for i in range(len(testRec[sensor_idx])):
 				test_data.append(
-					[[x[i] for x in testRec], np.expand_dims(self.dataXtest[0][i], axis=0), self.dataYtest[i]])
+					[[x[i] for x in testRec], np.expand_dims(self.dataXtest[sensor_idx][i], axis=0), self.dataYtest[i]])
 			return train_data, test_data
 	
 	def get_data_reconstructed(self,dataset_name,miss,imp,si,path,file,fold):
