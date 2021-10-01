@@ -84,7 +84,7 @@ class denoisingAEy:
 		self.device = torch.device("cuda" if use_cuda else "cpu")
 		self.model = ConvAutoencoder(hyp).to(self.device)
 
-	def train(self,xTrain,n_epochs = 70):
+	def train(self,xTrain,n_epochs = 70,verbose = False):
 		trainloader = DataLoader(xTrain, shuffle=True, batch_size=self.bs)
 		optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
 		scheduler = StepLR(optimizer, step_size=30, gamma=0.4)
@@ -121,6 +121,8 @@ class denoisingAEy:
 			# print avg training statistics
 			scheduler.step()
 			train_loss = train_loss / len(trainloader)
+			if verbose:
+				print(train_loss)
 			histTrainLoss.append(train_loss)
 		return histTrainLoss
 	

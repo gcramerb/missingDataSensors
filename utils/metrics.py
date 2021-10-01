@@ -15,8 +15,9 @@ class absoluteMetrics:
 				aux = np.where(diff != .0)[0]
 				idx.append(np.array(list(range(aux[0],aux[-1]+1))))
 			idx = np.array(idx)
-		self.dataOri = np.zeros([idx.shape[0],idx.shape[1],3])
-		self.dataRec =  np.zeros([idx.shape[0],idx.shape[1],3])
+		axis = xTrue.shape[-1]
+		self.dataOri = np.zeros([idx.shape[0],idx.shape[1],axis])
+		self.dataRec =  np.zeros([idx.shape[0],idx.shape[1],axis])
 		for i in range(xTrue.shape[0]):
 			self.dataOri[i,:,:] = xTrue[i,idx[i],:]
 			self.dataRec[i,:,:] = xRec[i,idx[i],:]
@@ -45,11 +46,19 @@ class absoluteMetrics:
 
 	def myMSE(self):
 		mse_list = []
+		axis = self.dataOri.shape[-1]
 		for k in range(3):
 			mse = np.square(np.subtract(self.dataOri[:,:,k], self.dataRec[:,:,k])).mean(axis=1)
 			mse_list.append(mse.mean())
 		return np.mean(mse_list)
-
+	def MAPE(self):
+		resp = []
+		axis = self.dataOri.shape[-1]
+		for k in range(axis):
+			d = np.subtract(self.dataOri[:,:,k], self.dataRec[:,:,k])/self.dataOri[:,:,k]
+			r = np.abs(d).mean(axis=1)
+			resp.append(r.mean())
+		return np.mean(resp)
 	def pearson_corr(self):
 		"""
 		correlation between two signals!
@@ -59,9 +68,12 @@ class absoluteMetrics:
 		z_corr = np.array([st.pearsonr(x, y)[0] for x, y in zip(self.dataOri[:,:,2],self.dataRec[:,:,2])])
 		return (x_corr.mean(),y_corr.mean(),z_corr.mean())
 	
+
+	
 	def runAll(self):
 		result = dict()
 		result['MSE'] = self.myMSE()
+		result['MAPE'] = self.MAPE()
 		result['PSNR'] = self.psnr()
 		a,b,c = self.pearson_corr()
 		result['corrX'] = a
