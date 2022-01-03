@@ -80,17 +80,56 @@ class absoluteMetrics:
 		result['corrY'] = b
 		result['corrZ'] = c
 		return result
+
+
+
+	def summarizeMetric(resList):
+		"""
+		resList: list of dictionaries
+		"""
+		resp = dict()
+		mse = [i['MSE'] for i in resList]
+		mape = [i['MAPE'] for i in resList]
+		icMse = st.t.interval(alpha=0.95, df=len(mse) - 1, loc=np.mean(mse), scale=st.sem(mse))
+		resp['MSE_down'] = icMse[0]
+		resp['MSE_up'] = icMse[1]
+		resp['MSE'] = np.mean(mse)
+		
+		icMape = st.t.interval(alpha=0.95, df=len(mape) - 1, loc=np.mean(mape), scale=st.sem(mape))
+		resp['MAPE_down'] = icMape[0]
+		resp['MAPE_up'] = icMape[1]
+		resp['MAPE'] = np.mean(mape)
+		
+		corrX = [i['corrX'] for i in resList]
+		corrY = [i['corrY'] for i in resList]
+		corrZ = [i['corrZ'] for i in resList]
+		resp['corrX'] = np.mean(corrX)
+		resp['corrY'] = np.mean(corrY)
+		resp['corrZ'] = np.mean(corrZ)
+		resp['MSE_list'] = mse
+		resp['corr_list'] = [np.mean([a, b, c]) for a, b, c in zip(corrX, corrY, corrZ)]
+		return resp
 	
 	def summarizeMetric(resList):
+		"""
+		resList: list of dictionaries
+		"""
 		resp = dict()
 		mse = [i['MSE'] for i in resList]
 		icMse = st.t.interval(alpha=0.95, df=len(mse) - 1, loc=np.mean(mse), scale=st.sem(mse))
-		mse = np.mean(mse)
-		resp['MSE'] = mse
 		resp['MSE_down'] = icMse[0]
 		resp['MSE_up'] = icMse[1]
-		resp['PSNR'] = np.mean([i['PSNR'] for i in resList])
-		resp['corrX'] = np.mean([i['corrX'] for i in resList])
-		resp['corrY'] = np.mean([i['corrY'] for i in resList])
-		resp['corrZ'] = np.mean([i['corrZ'] for i in resList])
+		resp['MSE'] = np.mean(mse)
+		corrX = [i['corrX'] for i in resList]
+		corrY = [i['corrY'] for i in resList]
+		corrZ = [i['corrZ'] for i in resList]
+		resp['corrX'] = np.mean(corrX)
+		resp['corrY'] = np.mean(corrY)
+		resp['corrZ'] = np.mean(corrZ)
+		resp['MSE_list'] = mse
+		resp['corr_list'] = [np.mean([a, b, c]) for a, b, c in zip(corrX, corrY, corrZ)]
+		
 		return resp
+	
+
+

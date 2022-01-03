@@ -20,8 +20,9 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--inPath', type=str, default=None)
 parser.add_argument('--outPath', type=str, default=None)
-parser.add_argument('--missingRate', type=str, default='0.2')
-parser.add_argument('--sensor', type=str, default='acc')
+parser.add_argument('--missingRate', type=str, default='0.5')
+parser.add_argument('--sensor', type=str, default='accGyr')
+parser.add_argument('--method', type=str, default='matrixFactorization')
 parser.add_argument('--trial', type=int, default=0)
 parser.add_argument('--Nfolds', type=int, default=14)
 parser.add_argument('--dataset', type=str, default="USCHAD.npz")
@@ -52,41 +53,20 @@ else:
 	classifiersPath = os.path.abspath("C:\\Users\\gcram\\Documents\\Smart Sense\\classifiers\\trained\\")
 	from plotGenerator import plot_result
 
-def summarizeMetric(resList):
-	"""
-	resList: list of dictionaries
-	"""
-	resp = dict()
-	mse = [i['MSE'] for i in resList]
-	icMse = st.t.interval(alpha=0.95, df=len(mse) - 1, loc=np.mean(mse),scale=st.sem(mse))
-	resp['MSE_down'] = icMse[0]
-	resp['MSE_up'] = icMse[1]
-	resp['MSE'] =  np.mean(mse)
-	corrX = [i['corrX'] for i in resList]
-	corrY = [i['corrY'] for i in resList]
-	corrZ = [i['corrZ'] for i in resList]
-	resp['corrX'] = np.mean(corrX)
-	resp['corrY'] = np.mean(corrY)
-	resp['corrZ'] = np.mean(corrZ)
-	resp['MSE_list'] = mse
-	resp['corr_list'] = [np.mean([a,b,c]) for a,b,c in zip(corrX,corrY, corrZ)]
 
-	return resp
 def myMetric(data):
 	m = np.mean(data)
 	ic = st.t.interval(alpha=0.95, df=len(data) - 1, loc=m, scale=st.sem(data))
 	return m,ic
 if __name__ == '__main__':
 	# process the data:
-	metricsMICE = []
-	metricsMF = []
-	metricsEM = []
-
+	metrics =[]
 	classifResult = {}
-	for n_ in ['MICE','MF','EM']:
-		classifResult[n_ + '_acc'] = []
-		classifResult[n_ + '_rec'] = []
-		classifResult[n_ + '_f1'] =[]
+	classifResult[args.method + '_acc'] = []
+	classifResult[args.method + '_rec'] = []
+	classifResult[args.method + '_f1'] =[]
+	classifResult['acc_f1'] = []
+	classifResult['gyr_f1'] = []
 	
 		
 	if args.sensor =='acc':
@@ -123,87 +103,69 @@ if __name__ == '__main__':
 
 		model = load_model(os.path.join(classifiersPath, f'DCNN_{args.sensor}_USCHAD_fold_{fold_i}.h5'))
 
+
 		testMiss = np.concatenate(DH.dataXmissingTest, axis=-1)
 		idxMissTest = DH.missing_indices['test']
 		del DH
 		#Reconstruction with standard methods
 		sm = SM()
-		works, xRecMICE = sm.runMethod(testMiss,'MICE')
-		works, xRecMF = sm.runMethod(testMiss, 'matrixFactorization')
-		works, xRecEM = sm.runMethod(testMiss, 'expectationMaximization')
+		works, xRec = sm.runMethod(testMiss, args.method)
+		del testMiss
 		del sm
 		if args.sensor =='accGyr':
+			modelAcc = load_model(os.path.join(classifiersPath, f'DCNN_acc_USCHAD_fold_{fold_i}.h5'))
+			modelGyr = load_model(os.path.join(classifiersPath, f'DCNN_gyr_USCHAD_fold_{fold_i}.h5'))
 			DH = dataHandler()
 			DH.load_data(dataset_name=args.dataset, sensor_factor='1.1', path=inPathDataset)
 			DH.apply_missing(missing_factor=args.missingRate, missing_sensor='1.0')
 			DH.splitTrainTest(fold_i=fold_i)
 			testMiss = np.concatenate(DH.dataXmissingTest, axis=-1)
 			sm = SM()
-			works, xRecMICEacc = sm.runMethod(testMiss, 'MICE')
-			works, xRecMFacc = sm.runMethod(testMiss, 'matrixFactorization')
-			works, xRecEMacc = sm.runMethod(testMiss, 'expectationMaximization')
+			works, xRecAcc = sm.runMethod(testMiss, args.method)
+			del testMiss
 			del sm
 			del DH
-			xRecMICE = np.concatenate([xRecMICEacc, xRecMICE], axis=2)
-			xRecMF = np.concatenate([xRecMFacc, xRecMF], axis=2)
-			xRecEM = np.concatenate([xRecEMacc,xRecEM],axis=2)
+			
+			yPredAcc = modelAcc.predict(np.expand_dims(xRecAcc[:,:,0:3], axis=-1))
+			yPredAcc = np.argmax(yPredAcc, axis=1)
+			
+			yPredGyr = modelGyr.predict(np.expand_dims(xRec[:,:,3:6], axis=-1))
+			yPredGyr = np.argmax(yPredGyr, axis=1)
+			
+			xRecF = np.concatenate([xRecAcc[:,:,0:3], xRec[:,:,3:6]], axis=2)
+			classifResult['acc_f1'].append(f1_score(yTrue, yPredAcc, average='macro'))
+			classifResult['gyr_f1'].append(f1_score(yTrue, yPredGyr, average='macro'))
 			
 			
+			testSensor = np.concatenate(testSensor,axis=2)
+		else:
+			xRecF = xRec
 
 		# run the evaluating metrics and classification
-		am = absoluteMetrics(testSensor,xRecMICE[:,:,ini:end],idxMissTest)
-		res = am.runAll()
-		metricsMICE.append(res)
-		yPredMICE = model.predict(np.expand_dims(xRecMICE[:,:,ini:end],axis = -1))
-		yPredMICE = np.argmax(yPredMICE, axis=1)
-		del am
+		# am = absoluteMetrics(testSensor, xRec[:, :, ini:end], idxMissTest)
+		# res = am.runAll()
+		# metrics.append(res)
+		#del am
+		yPred = model.predict(np.expand_dims(xRecF[:, :, ini:end], axis = -1))
+		yPred = np.argmax(yPred, axis=1)
 		
-		am = absoluteMetrics(testSensor,xRecMF[:,:,ini:end],idxMissTest)
-		res = am.runAll()
-		metricsMF.append(res)
-		yPredMF = model.predict(np.expand_dims(xRecMF[:,:,ini:end],axis = -1))
-		yPredMF = np.argmax(yPredMF, axis=1)
-		del am
-		
-		am = absoluteMetrics(testSensor,xRecEM[:,:,ini:end],idxMissTest)
-		res = am.runAll()
-		metricsEM.append(res)
-		yPredEM = model.predict(np.expand_dims(xRecEM[:,:,ini:end],axis = -1))
-		yPredEM = np.argmax(yPredEM, axis=1)
 
-		del am
+		classifResult[args.method  + '_acc'].append(accuracy_score(yTrue, yPred))
+		classifResult[args.method + '_rec'].append(recall_score(yTrue, yPred, average='macro'))
+		classifResult[args.method + '_f1'].append(f1_score(yTrue, yPred, average='macro'))
 
-
-		for name,pred in zip(['MICE','MF','EM'],[yPredMICE,yPredMF,yPredEM]):
-			classifResult[name + '_acc'].append(accuracy_score(yTrue, pred))
-			classifResult[name + '_rec'].append(recall_score(yTrue, pred, average='macro'))
-			classifResult[name + '_f1'].append(f1_score(yTrue, pred, average='macro'))
 	#
-	metricsMICE = summarizeMetric(metricsMICE)
-	metricsEM = summarizeMetric(metricsEM)
-	metricsMF = summarizeMetric(metricsMF)
+	#metrics = absoluteMetrics.summarizeMetric(metrics)
+
 
 	print('missing Rate:',args.missingRate,'\n')
 	print('Sensor:', args.sensor, '\n')
 	print('Trial:', args.trial, '\n')
-	print('MICE: \n',metricsMICE)
-	print('MF: \n',metricsMF)
-	print('EM: \n', metricsEM)
+	print('Method: ',args.method)
+	#print(args.method,'\n',metrics)
 
 	resultClass = dict(map(lambda kv: (kv[0], myMetric(kv[1])), classifResult.items()))
 	print(resultClass)
-	print('\n\n')
+	print('\n')
 	end = time.time()
 	print('time:  ', (end - start) / 60)
-	# savePath = os.path.join(args.outPath, f'result_MICE_{args.dataset.split(".")[0]}_{args.missingRate}')
-	# with open(savePath + '.json', "w") as write_file:
-	# 	json.dump(metricsMICE, write_file)
-	# savePath = os.path.join(args.outPath, f'result_EM_{args.dataset.split(".")[0]}_{args.missingRate}')
-	# with open(savePath + '.json', "w") as write_file:
-	# 	json.dump(metricsEM, write_file)
-	# savePath = os.path.join(args.outPath, f'result_MF_{args.dataset.split(".")[0]}_{args.missingRate}')
-	# with open(savePath + '.json', "w") as write_file:
-	# 	json.dump(metricsMF, write_file)
-	# savePath = os.path.join(args.outPath, f'result_Classification_{args.dataset.split(".")[0]}_{args.missingRate}')
-	# with open(savePath + '.json', "w") as write_file:
-	# 	json.dump(resultClass, write_file)
