@@ -16,7 +16,7 @@ parser.add_argument('--missingRate', type=str, default='0.2')
 parser.add_argument('--Nfolds', type=int, default=14)
 parser.add_argument('--trial', type=int, default=0)
 parser.add_argument('--dataset', type=str, default="USCHAD.npz")
-parser.add_argument('--sensor', type=str, default="gyr")
+parser.add_argument('--sensor', type=str, default="both")
 args = parser.parse_args()
 if args.slurm:
 	args.inPath = '/storage/datasets/sensors/LOSO/'
@@ -38,32 +38,40 @@ if __name__ == '__main__':
 	n_epoch = 70
 	if args.sensor =='acc':
 		missing_sensor = '1.0'
-		sensor_idx = 1
+		sensor_idx = 0
 	elif args.sensor =='gyr':
 		missing_sensor = '0.1'
 		sensor_idx = 1
+	elif args.sensor =='both':
+		missing_sensor = '1.1'
+		sensor_idx = 1
 	start = time.time()
+	
 	recAEy_list = []
 	y_list = []
 	idx_list = []
+	GT_list = []
 	for fold_i in range(args.Nfolds):
 		DH = dataHandler()
 		DH.load_data(dataset_name=args.dataset,path = args.inPath, sensor_factor='1.1.0')
 		DH.apply_missing(missing_factor=args.missingRate, missing_sensor=missing_sensor)
 		DH.impute('mean')
 		DH.splitTrainTest(fold_i)
-		train_data ,test_data = DH.get_data_pytorch(index=True,sensor_idx=sensor_idx)
-		#train_data, test_data = DH.get_data_pytorch()
+		
+		train_data ,test_data = DH.get_data_pytorch(index=True,sensor_idx = 0)
 		myModel = denoisingAEy()
 		myModel.buildModel()
 		hist = myModel.train(train_data,n_epoch,verbose=True)
 		recAEy, GT, recMean, labels,idxMissTest = myModel.predict(test_data)
+		
+		GT_list.append(GT)
 		recAEy_list.append(recAEy)
 		y_list.append(labels)
 		idx_list.append(idxMissTest)
 	mR = str(int(float(args.missingRate) * 100))
+
 	saveRec = os.path.join(args.outPath,args.sensor,f'USCHAD_recAEy{args.sensor}_miss{mR}_{args.trial}.npz')
-	np.savez(saveRec,X =recAEy_list,y_list = y_list,idx = idx_list)
+	np.savez(saveRec,rec =recAEy_list,y_list = y_list,GT = GT_list,idx = idx_list)
 	end = time.time()
 	print('time:  ',(end - start)/60)
 

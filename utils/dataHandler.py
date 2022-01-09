@@ -40,13 +40,14 @@ class dataHandler():
 		else:
 			data_input_file = os.path.join(path,dataset_name)
 		#data_input_file = '/home/guilherme.silva/datasets/LOSO/' + dataset_name
-		tmp = np.load(data_input_file, allow_pickle=True)
-		X = tmp['X'].astype('float32')
-		y_ = tmp['y']
+		with np.load(data_input_file, allow_pickle=True) as tmp:
+			X = tmp['X'].astype('float32')
+			y_ = tmp['y']
+			self.folds = tmp['folds']
 		self.nClass = y_.shape[1]
 		self.dataY = [np.argmax(i) for i in y_]
 		self.dataYraw = y_
-		self.folds = tmp['folds']
+		
 
 		self.labelsNames = classesNames(dataset_name)
 
@@ -198,13 +199,23 @@ class dataHandler():
 			for sensor in dataXreconstructed:
 				self.dataXreconstructedTest.append(sensor[idx_test])
 				self.dataXreconstructedTrain.append(sensor[idx_train])
+		
 		if self.missing_indices is not None:
 			aux = deepcopy(self.missing_indices)
 			if type(aux) is not list:
+				"""
+				if the missing index is a list, it means that there is at least 2 sensors with missing data
+			
+				"""
 				self.missing_indices = dict()
-				
 				self.missing_indices['train'] = aux[idx_train, :]
 				self.missing_indices['test'] = aux[idx_test, :]
+			else:
+				self.missing_indices = dict()
+				
+				self.missing_indices['train'] = np.concatenate((aux[0][idx_train, None,:],aux[1][idx_train,None ,:]),axis = 1)
+				self.missing_indices['test'] = np.concatenate((aux[0][idx_test, None,:],aux[1][idx_test,None ,:]),axis = 1)
+				
 
 
 	def apply_missing(self,missing_factor,missing_type = 'b',missing_sensor = '1.0.0'):
@@ -216,45 +227,26 @@ class dataHandler():
 		nSamples = self.dataX[0].shape[0]
 		dim = self.dataX[0].shape[1]
 		s = missing_sensor.split('.')
-
+		
+		self.missing_indices = []
+		count = 0
 		for i in range(len(s)):
 			if s[i] == '1':
-				if missing_type == 'b':
-					block_range = round(dim * float(missing_factor))
-					idx_range_max = dim - 2 - block_range
-					idx_missing_all = []
-					self.missing_indices = np.zeros((nSamples, block_range),dtype = np.int16)
-					for j in range(0,nSamples):
-						idx_missing = random.sample(range(0, idx_range_max), 1)[0]
-						self.dataXmissing[i][j, idx_missing:idx_missing + block_range, 0:3] = np.nan
-						self.missing_indices[j,:] = range(idx_missing,idx_missing + block_range)
+				block_range = round(dim * float(missing_factor))
+				idx_range_max = dim - 2 - block_range
+				idx_missing_all = []
+				self.missing_indices.append(np.zeros((nSamples, block_range), dtype=np.int16))
+				
+				for j in range(0,nSamples):
+					idx_missing = random.sample(range(0, idx_range_max), 1)[0]
+					self.dataXmissing[i][j, idx_missing:idx_missing + block_range, 0:3] = np.nan
+					self.missing_indices[count][j,:] = range(idx_missing,idx_missing + block_range)
+				count = count +1
+			# else:
+			# 	self.missing_indices.append(None)
+		if len(self.missing_indices) == 1:
+			self.missing_indices =self.missing_indices[0]
 
-				if missing_type == 'nb':
-					# usamos valor defaut de 3 partes ausentes
-					# a princípo não está sendo tratado se os blocos faltantes forem sobrepostos.
-					n = 3
-					block_range = round(dim * float(missing_factor))
-					block_i = round(block_range/n)
-					dim_i = round(dim/n)
-					idx_range_max = dim - 1 - block_i
-					idx_range_max_i = round(idx_range_max/n)
-					#self.missing_indices = np.zeros((nSamples, block_i*3))
-					for j in range(nSamples):
-						#aux_MIdx = []
-						for k in range(0,n):
-							ini_range = k*idx_range_max_i
-							end_range = ini_range + idx_range_max_i
-							idx_missing = random.sample(range(ini_range, end_range), 1)[0]
-							self.dataXmissing[i][j, idx_missing:idx_missing + block_i, 0:3] = np.nan
-							#aux_MIdx.append(range(idx_missing,idx_missing + block_i))
-						#self.missing_indices[(i+1)*'1'][j,:] = aux_MIdx
-				elif missing_type == 'u':
-					idx_notMissing = list(range(0,dim,missing_factor))
-					#idx_notMissing = idx_notMissing.flatten()
-					self.missing_indices = list(set(range(dim)) - set(idx_notMissing))
-					self.dataXmissing[i][:, self.missing_indices, 0:3] = np.nan
-
-					
 	def get_missing_indices(self):
 		if self.missing_indices is not None:
 			return self.missing_indices
@@ -398,6 +390,9 @@ class dataHandler():
 			return train, trainRec, testRec
 	
 	def get_data_pytorch(self,index = False,sensor_idx = 0):
+		"""
+		sensor_idx: the sensor that gonna be reconstructed.
+		"""
 		if index:
 			train, trainRec, testRec, all_index = self.get_data_keras(True)
 			train_data = []

@@ -3,8 +3,6 @@ from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 import scipy.stats as st
 import os, sys,json
-
-
 from dataHandler import dataHandler
 import pickle
 
@@ -188,6 +186,3 @@ if __name__ == '__main__':
 	outPath = os.path.abspath('C:\\Users\\gcram\\Documents\\Smart Sense\\HAR_classifiers\\trained\\')
 	dataset = 'USCHAD'
 	trainSaveClassifiers(dataset,inPath,outPath)
-	
-	
-        

@@ -3,9 +3,9 @@ import pandas as pd
 import scipy.stats as st
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 from sklearn.metrics import mean_squared_error as MSE
-import sys, os
-import json
+import sys, os, json
 from math import log10,sqrt
+
 class absoluteMetrics:
 	def __init__(self,xTrue,xRec,idx=None):
 		if idx is None:
