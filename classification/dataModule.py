@@ -86,7 +86,7 @@ class DM(LightningDataModule):
 		                  drop_last=True)
 
 def get_dataLoader(dataX,dataY,batch_size = 64):
-	data = myDataset(dataX[:,None,:,:],dataY)
+	data = myDataset(dataX,dataY)
 	return DataLoader(data,
 	                  batch_size=batch_size,
 	                  shuffle=True,

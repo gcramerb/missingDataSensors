@@ -24,8 +24,8 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--inPath', type=str, default=None)
 parser.add_argument('--outPath', type=str, default=None)
 parser.add_argument('--missingRate', type=str, default='0.2')
-parser.add_argument('--missingSensor', type=str, default='gyr')
-parser.add_argument('--clfSensor', type=str, default='gyr')
+parser.add_argument('--missingSensor', type=str, default='accGyr')
+parser.add_argument('--clfSensor', type=str, default='accGyr')
 parser.add_argument('--trial', type=int, default=0)
 parser.add_argument('--Nfolds', type=int, default=14)
 parser.add_argument('--dataset', type=str, default="USCHAD.npz")
@@ -69,11 +69,18 @@ def get_rec_data(fold_i):
 		data['acc'] = tmp['X']
 		Yacc = tmp['y']
 	mR = str(int(float(args.missingRate) * 100))
-	recFile = os.path.join(args.inPath, 'gyr', f'USCHAD_recAEygyr_{fold_i}_miss{mR}_0.npz')
+	
+	#recFile = os.path.join(args.inPath, 'gyr', f'USCHAD_recAEygyr_{fold_i}_miss{mR}_0.npz')
+
+	recFile = os.path.join(args.inPath,'gyr',f'{args.dataset.split(".")[0]}_recAEygyr_miss{mR}.npz')
 	with np.load(recFile, allow_pickle=True) as tmp:
-		data['gyr'] = tmp['X']
-		
-	data['accGyr'] = np.concatenate([data['acc'],data['gyr']],axis = -1)
+		data['gyr'] = tmp['rec'][fold_i]
+	
+	recFile = os.path.join(args.inPath, 'both', f'{args.dataset.split(".")[0]}_recAEyboth_miss{mR}.npz')
+	with np.load(recFile, allow_pickle=True) as tmp:
+		data['accGyr'] = np.concatenate([tmp['rec'][fold_i][:,0,:,:],tmp['rec'][fold_i][:,1,:,:]],axis = -1)
+	data['accGyr'] =data['accGyr'][:,None,:,:]
+	#data['accGyr'] = np.concatenate([data['acc'],data['gyr']],axis = -1)
 	return data[args.missingSensor]
 
 
@@ -91,75 +98,74 @@ classes = [ 'Walking Forward',
 			'Elevator Down']
 
 
-if __name__ == '__main__':
+
+def clfAnalysis():
 	# process the data:
-	metrics =[]
+	metrics = []
 	classifResult = {}
 	classifResult['AE_acc'] = []
 	classifResult['AE_f1'] = []
-	AE_cm = np.zeros([12,12])
-
-
-	if args.missingSensor =='acc':
+	AE_cm = np.zeros([12, 12])
+	
+	if args.missingSensor == 'acc':
 		ms = '1.0'
 		s_idx = 0
 
-
-	elif args.missingSensor =='gyr':
+	elif args.missingSensor == 'gyr':
 		ms = '0.1'
 		s_idx = 1
-	elif args.missingSensor =='accGyr':
+	elif args.missingSensor == 'accGyr':
 		ms = '1.1'
-		s_idx = slice(0,2)
+		s_idx = slice(0, 2)
 		ini = 0
 		end = 6
-	if args.clfSensor =='all':
+	if args.clfSensor == 'accGyr':
 		clfSensor = 'accGyr'
-		input_shape = args(1,500,6)
+		input_shape = (1, 500, 6)
 	else:
 		clfSensor = args.missingSensor
-		input_shape = (1,500,3)
+		input_shape = (1, 500, 3)
 	
 	allRec = {}
 	start = time.time()
 	print('starting')
 	for fold_i in range(args.Nfolds):
-
+		
 		DH = dataHandler()
 		DH.load_data(dataset_name=args.dataset, sensor_factor='1.1', path=inPathDataset)
-		DH.apply_missing(missing_factor=args.missingRate, missing_sensor=ms)
+		DH.apply_missing(missingRate=args.missingRate, missing_sensor=ms)
 		DH.splitTrainTest(fold_i=fold_i)
 		
 		testMiss = np.concatenate(DH.dataXmissingTest, axis=-1)
-		#Reconstruction with standard methods
-		#sm = SM()
-		#allRec = sm.runAll(testMiss)
+		# Reconstruction with standard methods
+		# sm = SM()
+		# allRec = sm.runAll(testMiss)
 		
 		allRec['AE'] = get_rec_data(fold_i)
 		
 		if args.missingSensor != clfSensor:
 			oriSensor = DH.dataXtest[s_idx]
 			if args.missingSensor == 'acc':
-				allRec['AE'] = np.concatenate([allRec['AE'],oriSensor],axis = -1)
+				allRec['AE'] = np.concatenate([allRec['AE'], oriSensor], axis=-1)
 			else:
-				allRec['AE'] = np.concatenate([oriSensor,allRec['AE']], axis=-1)
+				allRec['AE'] = np.concatenate([oriSensor, allRec['AE']], axis=-1)
 		yTrue = DH.dataYtest
-
+		
 		# ----------------- analysing the reconstruction - ----------------------"
 		dataset = args.dataset.split('.')[0]
 		file = f'{dataset}_fold_{fold_i}_{clfSensor}'
-		model = clfDCNN(input_shape = input_shape)
-		model.load_params(classifiersPath,file)
+		model = clfDCNN(input_shape=input_shape)
+		model.load_params(classifiersPath, file)
 		
-		for k,v in allRec.items():
-			dl = get_dataLoader(v,yTrue)
+		for k, v in allRec.items():
+			dl = get_dataLoader(v, yTrue)
 			metrics = model.myTest(dl)
 			classifResult[k + '_acc'].append(metrics['acc'])
 			classifResult[k + '_f1'].append(metrics['f1'])
 			AE_cm += metrics['cm']
 		del testMiss, DH
-
-	print('missing Rate:',args.missingRate,'\n')
+	
+	print('missing Rate:', args.missingRate, '\n')
 	print('Missing Sensor:', args.missingSensor, '\n')
 	print('Trial:', args.trial, '\n')
 	
@@ -170,6 +176,11 @@ if __name__ == '__main__':
 	print(AE_cm)
 	print('time:  ', (end - start) / 60)
 	
+	mr = str(int(100*float(args.missingRate)))
+	result_file = f'recAE_{args.dataset.split(".")[0]}_missing_{mr}.pkl'
+	with open(result_file , 'wb') as file:
+		pickle.dump(resultClass,file)
+	
 	df_cm = pd.DataFrame(AE_cm, index=classes,
 	                     columns=classes)
 	fig, ax = plt.subplots(1, 1, figsize=(32, 12), dpi=80)
@@ -178,5 +189,9 @@ if __name__ == '__main__':
 	ax.set_ylabel('Pred Label', fontsize=20)
 	ax.set_title(f'confusion matrix  - {args.missingSensor} rec', fontsize=30)
 	plt.xticks(rotation=0)
-	plt.show()
-	plt.savefig(f'confusion matrix {args.missingSensor}_rec.png')
+	plt.savefig(f'confusion matrix {args.missingSensor}_rec_missing{mr}.png')
+
+if __name__ == '__main__':
+	clfAnalysis()
+
+

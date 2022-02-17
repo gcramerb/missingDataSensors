@@ -2,9 +2,12 @@ Literature projects/
 slurm/
 venv/
 results/
+saved/
 baselines/
+classification/checkpoints/
 __pycache__/
 .idea/
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

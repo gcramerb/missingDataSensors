@@ -68,7 +68,7 @@ class dataHandler():
 			s = sensor_factor.split('.')
 			for i in range(len(s)):
 				if s[i] == '1':
-					temp.append(np.squeeze(data[i]))
+					temp.append(data[i])
 
 		if dataset_name == 'PAMAP2P.npz':
 			data = []
@@ -90,7 +90,7 @@ class dataHandler():
 
 			for i in range(len(s)):
 				if s[i] == '1':
-					temp.append(np.squeeze(data[i]))
+					temp.append(data[i])
 
 		if dataset_name == 'UTD-MHAD1_1s.npz':
 			data = []
@@ -100,7 +100,7 @@ class dataHandler():
 			s = sensor_factor.split('.')
 			for i in range(len(s)):
 				if s[i] == '1':
-					temp.append(np.squeeze(data[i]))
+					temp.append(data[i])
 
 		if dataset_name == 'UTD-MHAD2_1s.npz':
 			data = []
@@ -110,7 +110,7 @@ class dataHandler():
 			s = sensor_factor.split('.')
 			for i in range(len(s)):
 				if s[i] == '1':
-					temp.append(np.squeeze(data[i]))
+					temp.append(data[i])
 
 		if dataset_name == 'WHARF.npz':
 			data = []
@@ -119,7 +119,7 @@ class dataHandler():
 			s = sensor_factor.split('.')
 			for i in range(len(s)):
 				if s[i] == '1':
-					temp.append(np.squeeze(data[i]))
+					temp.append(data[i])
 
 		if dataset_name == 'USCHAD.npz':
 			data = []
@@ -129,7 +129,7 @@ class dataHandler():
 			s = sensor_factor.split('.')
 			for i in range(len(s)):
 				if s[i] == '1':
-					temp.append(np.squeeze(data[i]))
+					temp.append(data[i])
 
 		if dataset_name == 'WISDM.npz':
 			data = []
@@ -138,9 +138,9 @@ class dataHandler():
 			s = sensor_factor.split('.')
 			for i in range(len(s)):
 				if s[i] == '1':
-					temp.append(np.squeeze(data[i]))
-		Xsensor = np.concatenate(temp, axis=-1)
-		self.dataX = temp
+					temp.append(data[i])
+		self.dataX = np.concatenate(temp, axis=1)
+
 		
 	def splitTrainTest(self,fold_i = None,ratio = 0.7,val = False):
 		del self.dataXtest
@@ -148,19 +148,16 @@ class dataHandler():
 		self.dataXtrain = []
 		self.dataXtest = []
 		
+		samples = self.dataX.shape[0]
+		np.random.seed(0)
 		if fold_i is None and val:
-			samples = len(self.dataX[0])
-			np.random.seed(0)
 			trainSize = int(samples*(ratio - 0.1))
 			valSize = int(samples*0.1)
-		
 			idx = np.random.permutation(samples)
 			idx_train = idx[:trainSize]
 			idx_val= idx[trainSize:valSize]
 			idx_test =  idx[valSize:]
 		elif fold_i is None:
-			samples = len(self.dataX[0])
-			np.random.seed(0)
 			max_ = int(samples*(ratio - 0.1))
 			idx = np.random.permutation(samples)
 			idx_train = idx[:max_]
@@ -168,20 +165,19 @@ class dataHandler():
 		else:
 			idx_train = self.folds[fold_i][0]
 			idx_test = self.folds[fold_i][1]
-		
-		
-		
+
 		if self.dataX is not None:
 			dataX = deepcopy(self.dataX)
 			self.dataXtrain = []
-			for sensor in dataX:
-				self.dataXtest.append(sensor[idx_test])
-				self.dataXtrain.append(sensor[idx_train])
+			self.dataXtest = dataX[idx_test]
+			self.dataXtrain  = dataX[idx_train]
+			
 		if self.dataY is not None:
 			dataY = deepcopy(self.dataY)
 			self.dataYtrain = []
 			self.dataYtrain = [dataY[i] for i in idx_train]
 			self.dataYtest = [dataY[i] for i in idx_test]
+			
 		if self.dataYraw is not None:
 			dataYraw = deepcopy(self.dataYraw)
 			self.dataYrawTrain = []
@@ -189,89 +185,63 @@ class dataHandler():
 			self.dataYrawTest = [dataYraw[i] for i in idx_test]
 		if self.dataXmissing is not None:
 			dataXmissing = deepcopy(self.dataXmissing)
-			self.dataXmissingTrain = []
-			for sensor in dataXmissing:
-				self.dataXmissingTest.append(sensor[idx_test])
-				self.dataXmissingTrain.append(sensor[idx_train])
+			self.dataXmissingTest = dataXmissing[idx_test]
+			self.dataXmissingTrain = dataXmissing[idx_train]
+			
 		if self.dataXreconstructed is not None:
 			dataXreconstructed = deepcopy(self.dataXreconstructed)
-			self.dataXreconstructedTrain = []
-			for sensor in dataXreconstructed:
-				self.dataXreconstructedTest.append(sensor[idx_test])
-				self.dataXreconstructedTrain.append(sensor[idx_train])
+			self.dataXreconstructedTest = dataXreconstructed[idx_test]
+			self.dataXreconstructedTrain = dataXreconstructed[idx_train]
 		
 		if self.missing_indices is not None:
 			aux = deepcopy(self.missing_indices)
-			if type(aux) is not list:
-				"""
-				if the missing index is a list, it means that there is at least 2 sensors with missing data
-			
-				"""
-				self.missing_indices = dict()
-				self.missing_indices['train'] = aux[idx_train, :]
-				self.missing_indices['test'] = aux[idx_test, :]
-			else:
-				self.missing_indices = dict()
-				
-				self.missing_indices['train'] = np.concatenate((aux[0][idx_train, None,:],aux[1][idx_train,None ,:]),axis = 1)
-				self.missing_indices['test'] = np.concatenate((aux[0][idx_test, None,:],aux[1][idx_test,None ,:]),axis = 1)
-				
+			self.missing_indices = dict()
+			self.missing_indices['train'] = aux[idx_train, :]
+			self.missing_indices['test'] = aux[idx_test, :]
 
 
-	def apply_missing(self,missing_factor,missing_type = 'b',missing_sensor = '1.0.0'):
+	def apply_missing(self,missingRate,missing_sensor = '1.0.0'):
 
 		if self.dataX is None:
-			print('Dados inexistente ')
-			return
+			raise ValueError("Dados inexistente")
+
 		self.dataXmissing = deepcopy(self.dataX)
-		nSamples = self.dataX[0].shape[0]
-		dim = self.dataX[0].shape[1]
+		nSamples = self.dataX.shape[0]
+		dim = self.dataX.shape[2]
 		s = missing_sensor.split('.')
-		
-		self.missing_indices = []
-		count = 0
-		for i in range(len(s)):
-			if s[i] == '1':
-				block_range = round(dim * float(missing_factor))
-				idx_range_max = dim - 2 - block_range
-				idx_missing_all = []
-				self.missing_indices.append(np.zeros((nSamples, block_range), dtype=np.int16))
-				
-				for j in range(0,nSamples):
-					idx_missing = random.sample(range(0, idx_range_max), 1)[0]
-					self.dataXmissing[i][j, idx_missing:idx_missing + block_range, 0:3] = np.nan
-					self.missing_indices[count][j,:] = range(idx_missing,idx_missing + block_range)
-				count = count +1
-			# else:
-			# 	self.missing_indices.append(None)
-		if len(self.missing_indices) == 1:
-			self.missing_indices =self.missing_indices[0]
+		block_range = round(dim * float(missingRate))
+		idx_range_max = dim - 2 - block_range
+		idx_missing_all = []
+		self.missing_indices = np.zeros((nSamples, block_range), dtype=np.int16)
+		for i in range(0, nSamples):
+			idx_missing = random.sample(range(0, idx_range_max), 1)[0]
+			self.missing_indices[i, :] = range(idx_missing, idx_missing + block_range)
+			for ms in range(len(s)):
+				if s[ms] == '1':
+						self.dataXmissing[i,ms, self.missing_indices[i, :] ,0:3] = np.nan
 
 	def get_missing_indices(self):
 		if self.missing_indices is not None:
 			return self.missing_indices
 		else:
-			print('ERROR')
-			return []
+			raise ValueError("ValueError: no missing indexes seted up")
+
 
 	def impute(self,impute_type):
 		self.dataXreconstructed = deepcopy(self.dataXmissing)
-		nSamples = self.dataX[0].shape[0]
-		dim = self.dataX[0].shape[1]
+		nSamples,n_sensors,dim  = self.dataX.shape[0:3]
 		self.imputeType = impute_type
 		if  impute_type == 'mean':
 			for i in range(nSamples):
-				for j in range(len(self.dataXreconstructed)):
-					
-					idx_missing = np.argwhere(np.isnan(self.dataXreconstructed[j][i,:,0])) #All axis has the same missing points
+				for j in range(n_sensors):
+					idx_missing = np.argwhere(np.isnan(self.dataXreconstructed[i,j,:,0])) #All axis has the same missing points
 					idx_missing = idx_missing.flatten()
 					idx_notM = list(set(range(dim)) - set(idx_missing))
-					defautMeanX = np.mean(self.dataXreconstructed[j][i, idx_notM, 0])
-					defautMeanY = np.mean(self.dataXreconstructed[j][i, idx_notM, 1])
-					defautMeanZ = np.mean(self.dataXreconstructed[j][i, idx_notM, 2])
-					self.dataXreconstructed[j][i,idx_missing,0:3] = [defautMeanX,defautMeanY,defautMeanZ]
-					#defautMeanX = np.mean(data_missing[i, idx_notM])
-					#data_missing[i, idx_missing] = defautMeanX
+					defautMeanX = np.mean(self.dataXreconstructed[i,j, idx_notM, 0])
+					defautMeanY = np.mean(self.dataXreconstructed[i,j, idx_notM, 1])
+					defautMeanZ = np.mean(self.dataXreconstructed[i,j, idx_notM, 2])
+					self.dataXreconstructed[i,j,idx_missing,0:3] = [defautMeanX,defautMeanY,defautMeanZ]
+
 		if  impute_type == 'RWmean':
 			for i in range(nSamples):
 				for sensor in self.dataXreconstructed: # each sensor (acc,gyr..)
@@ -321,25 +291,6 @@ class dataHandler():
 						lastVy = sensor[i,idx_missing[0]-1,1]
 						lastVz = sensor[i,idx_missing[0]-1,2]
 						sensor[i, idx_missing, 0:3] = [lastVx, lastVy, lastVz]
-		if impute_type == 'aleatory':
-			# nao sera usado
-			seed(22277)
-			for i in range(nSamples):
-				for sensor in self.dataXreconstructed:
-					idx_missing = np.argwhere(np.isnan(sensor[i,:,0]))
-					idx_missing = idx_missing.flatten()
-					n = len(idx_missing)
-					minX = np.nanmin(sensor[i,:,0])
-					minY = np.nanmin(sensor[i,:,1])
-					minZ = np.nanmin(sensor[i,:,2])
-
-					maxX = np.nanmax(sensor[i,:,0])
-					maxY= np.nanmax(sensor[i,:,1])
-					maxZ =np.nanmax(sensor[i,:,2])
-					x = minX + (rand(n) * (maxX - minX))
-					y = minY + (rand(n) * (maxY - minY))
-					z = minZ + (rand(n) * (maxZ - minZ))
-					sensor[i, idx_missing, 0:3] = [x,y,z]
 
 		if impute_type == 'interpolation':
 			for i in range(nSamples):
@@ -365,74 +316,24 @@ class dataHandler():
 					sensor[i, idx_missing, 2] = fftpack.irfft(zfreq, n=len(idx_missing))
 	
 
-	def get_data_keras(self,index = False):
+	def get_data_pytorch(self,index = False,sensor_idx =slice(0,2)):
+		"""
+		trainRec: both sensor contais missing acording to configuration
+		train: the sensor the gonna be reconstructed
+		testRec: both sensor contains missing acording to config
+		"""
+		train_data = []
+		test_data = []
+		all_index = self.get_missing_indices()
+		train = self.dataXtrain[:,sensor_idx,:,:]
+		if index:
+			for i in range(len(train)):
+				train_data.append([self.dataXreconstructedTrain[i], train[i],all_index['train'][i]] )
+		else:
+			for i in range(len(train)):
+				train_data.append([trainRec[i], train[i], all_index['train'][i]])
 
-		X_trainRec = self.dataXreconstructedTrain
-		X_train = self.dataXtrain
-		X_testRec = self.dataXreconstructedTest
-		
-		# X_GT = DH.dataXtest
-		trainRec = []
-		train = []
-		testRec = []
-		#
-		for sTrainRec, sTrain in zip(X_trainRec, X_train):
-			s0 = np.expand_dims(sTrainRec, axis=1)
-			s1 = np.expand_dims(sTrain, axis=1)
-			trainRec.append(s0)
-			train.append(s1)
-		for sTest in X_testRec:
-			s2 = np.expand_dims(sTest, axis=1)
-			testRec.append(s2)
-		if index:
-			return train,trainRec,testRec, self.get_missing_indices()
-		else:
-			return train, trainRec, testRec
-	
-	def get_data_pytorch(self,index = False,sensor_idx = 0):
-		"""
-		sensor_idx: the sensor that gonna be reconstructed.
-		"""
-		if index:
-			train, trainRec, testRec, all_index = self.get_data_keras(True)
-			train_data = []
-			for i in range(len(train[sensor_idx])):
-				train_data.append([[xr[i] for xr in trainRec], train[sensor_idx][i],all_index['train'][i]] )
-			
-			test_data = []
-			for i in range(len(testRec[0])):
-				test_data.append(
-					[[x[i] for x in testRec], np.expand_dims(self.dataXtest[sensor_idx][i], axis=0), self.dataYtest[i],all_index['test'][i]])
-			return train_data, test_data
-		else:
-			train, trainRec, testRec = self.get_data_keras(False)
-			train_data = []
-			for i in range(len(train[sensor_idx])):
-				train_data.append([[xr[i] for xr in trainRec], train[sensor_idx][i]])
-			test_data = []
-			for i in range(len(testRec[sensor_idx])):
-				test_data.append(
-					[[x[i] for x in testRec], np.expand_dims(self.dataXtest[sensor_idx][i], axis=0), self.dataYtest[i]])
-			return train_data, test_data
-	
-	def get_data_reconstructed(self,dataset_name,miss,imp,si,path,file,fold):
-		if si:
-			self.load_data(dataset_name=dataset_name, sensor_factor='1.0', path=path)
-			self.apply_missing(missing_factor=miss, missing_sensor='1.0')
-			self.impute(imp)
-			self.splitTrainTest(fold_i=fold_i)
-			
-			testRec = self.dataXreconstructedTest[0]
-			testTrue = self.dataXtest[0]
-			# y_true = DH.dataYtest
-			idxAll = self.get_missing_indices()['test']
-		else:
-			data = np.load(path +file, allow_pickle=True)
-			testRec = data['deploy_data']
-			self.load_data(dataset_name=dataset_name, sensor_factor='1.0', path=path)
-			self.splitTrainTest(fold_i=fold)
-			testTrue = self.dataXtest[0]
-			# test = data['data']
-			y_true = data['classes']
-			idxAll = None
-		return testRec, testTrue, idxAll
+		test = self.dataXtest[:,sensor_idx,:,:]
+		for i in range(test.shape[0]):
+			test_data.append([self.dataXreconstructedTest[i],test[i] , self.dataYtest[i],all_index['test'][i]])
+		return train_data, test_data

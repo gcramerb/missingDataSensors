@@ -16,7 +16,7 @@ from dataModule import DM
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--slurm', action='store_true')
-parser.add_argument('--dataset', type=str, default="USCHAD")
+parser.add_argument('--dataset', type=str, default="MHEALTH")
 parser.add_argument('--sensor', type=str, default="acc")
 args = parser.parse_args()
 

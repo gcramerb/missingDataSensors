@@ -14,8 +14,9 @@ from modelUtils.custom_losses import My_dct_Loss as DCT_loss
 
 # define the NN architecture
 class ConvAutoencoder(nn.Module):
-	def __init__(self,hyp = None):
+	def __init__(self,hyp = None,outSensor = 1):
 		super(ConvAutoencoder, self).__init__()
+		self.outSensor = outSensor
 		if hyp:
 			conv_window = hyp['conv_window']
 			pooling_window_1 = hyp['pooling_window_1']
@@ -45,7 +46,7 @@ class ConvAutoencoder(nn.Module):
 		self.up3 = nn.Upsample(scale_factor=pooling_window_2)
 		self.conv_neg_2 = nn.Conv2d(in_channels = n_filters[1],kernel_size=conv_window, out_channels=n_filters[0], padding=same_pad) # mudar para sair 16 ?
 		self.up2 = nn.Upsample(scale_factor=pooling_window_1)
-		self.decoded = nn.Conv2d(in_channels =n_filters[0],kernel_size=conv_window, out_channels=1, padding=same_pad)
+		self.decoded = nn.Conv2d(in_channels =n_filters[0],kernel_size=conv_window, out_channels=self.outSensor, padding=same_pad)
 
 	def forward(self,X):
 		encoded = []
@@ -76,15 +77,16 @@ class ConvAutoencoder(nn.Module):
 		return decoded
 
 class denoisingAEy:
-	def __init__(self,bs=16):
+	def __init__(self,bs=16,ms = '1.0'):
 		self.bs = bs
+		self.outSensor = sum([int(i) for i in ms.split('.')])
 	def buildModel(self,hyp = None):
 		use_cuda = torch.cuda.is_available()
 		self.device = torch.device("cuda" if use_cuda else "cpu")
-		self.model = ConvAutoencoder(hyp).to(self.device)
+		self.model = ConvAutoencoder(hyp,outSensor = self.outSensor).to(self.device)
 
 	def train(self,xTrain,n_epochs = 70,verbose = False):
-		trainloader = DataLoader(xTrain, shuffle=True, batch_size=self.bs)
+		trainloader = DataLoader(xTrain, shuffle=True, batch_size=self.bs,drop_last = False)
 		optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
 		scheduler = StepLR(optimizer, step_size=30, gamma=0.4)
 		#criterion = SoftDTW(use_cuda, gamma=0.01)
@@ -96,9 +98,10 @@ class denoisingAEy:
 			# monitor training loss
 			train_loss = 0.0
 			for i, (dataIn, dataOut,idxTrain) in enumerate(trainloader):
+				
 				sensor_dataRec = []
-				for In in dataIn:
-					sensor_dataRec.append(In.to(device=self.device, dtype=torch.float))
+				for sen in range(dataIn.shape[1]):
+					sensor_dataRec.append(dataIn[:,[sen],:,:].to(device=self.device, dtype=torch.float))
 				sensor_data = dataOut.to(device=self.device, dtype=torch.float)
 				# clear the gradients of all optimized variables
 				optimizer.zero_grad()
@@ -107,7 +110,7 @@ class denoisingAEy:
 				# calculate the loss
 				# loss = criterion(outputs[:,0,:,:], sensor_data[:,0,:,:])
 				loss = criterion(outputs, sensor_data)
-				loss = criterion(np.squeeze(outputs), np.squeeze(sensor_data))
+				#loss = criterion(np.squeeze(outputs), np.squeeze(sensor_data))
 				
 				# backward pass: compute gradient of the loss with respect to model parameters
 				loss.mean().backward()
@@ -134,50 +137,38 @@ class denoisingAEy:
 			self.model = pickle.load(m)
 
 	def predict(self,xTest):
-		testloader =  DataLoader(xTest, shuffle=False, batch_size=1)
+		testloader =  DataLoader(xTest, shuffle=False, batch_size=64)
 		first = True
 		y_all = []
+		pred_all = []
+		testGT_all = []
+		testRec_all = []
+		idx_allTest = []
 		
 		with torch.no_grad():
 			for i, (dataInTest, dataOutTest, label_i,idxTest) in enumerate(testloader):
-				y = label_i.cpu().data.numpy()[0]
+				y = label_i.cpu().data.numpy()
 				testRec = []
-				for InTest in dataInTest:
-					testRec.append(InTest.to(device=self.device, dtype=torch.float))
+				for sen in range(dataInTest.shape[1]):
+					testRec.append(dataInTest[:,[sen],:,:].to(device=self.device, dtype=torch.float))
+
 				testGT = dataOutTest.to(device=self.device, dtype=torch.float)
 				pred = self.model(testRec)
 				# pred, testRec, testGT = pred.cpu().data.numpy()[0][0], testRec.cpu().data.numpy()[0][0],testGT.cpu().data.numpy()[0][0]
-				pred, testGT, testRec = pred.cpu().data.numpy()[0], testGT.cpu().data.numpy()[0], \
-				                        testRec[0].cpu().data.numpy()[0]
+				pred, testGT, testRec = pred.cpu().data.numpy(), testGT.cpu().data.numpy(), \
+				                        testRec[0].cpu().data.numpy()
 
 
 				pred_ = deepcopy(testGT)
-				idx = idxTest.cpu().data.numpy()[0].astype('int')
+				idx = idxTest.cpu().data.numpy().astype('int')
+				
+				for i in range(pred_.shape[0]):
+					pred_[i,:,idx,:] = pred[i,:,idx,:]
+					
+				y_all+=y.tolist()
+				idx_allTest += idx.tolist()
+				pred_all.append(pred_)
+				testGT_all.append(testGT)
+				testRec_all.append(testRec)
 
-				pred_[0,idx,:] = pred[0,idx,:]
-				if first:
-					pred_all = pred_
-					testGT_all = testGT
-					testRec_all = testRec
-					y_all.append(y)
-					idx_allTest = np.zeros([1,len(idx)],dtype = 'int')
-					idx_allTest[0] = idx
-					first = False
-					print('\n\n')
-					print(idx.shape)
-					print('\n\n')
-				else:
-					pred_all = np.concatenate([pred_all, pred_], axis=0)
-					testGT_all = np.concatenate([testGT_all, testGT], axis=0)
-					testRec_all = np.concatenate([testRec_all, testRec], axis=0)
-					y_all.append(y)
-					idx_allTest = np.concatenate([idx_allTest, np.expand_dims(idx,axis=0)], axis=0)
-			# pred_all = recontrucao do AE
-			# testGT_all = dado original
-			# testRec = dado reconstruido com media
-			# y_all = Labels
-			# print('\n\n')
-			# print(idx_allTest.shape)
-			# print('\n\n')
-			# print(idx_allTest[0,:])
-			return pred_all, testGT_all, testRec_all,y_all, idx_allTest
+			return np.concatenate(pred_all,axis = 0), np.concatenate(testGT_all), np.concatenate(testRec_all),y_all, np.stack(idx_allTest)
